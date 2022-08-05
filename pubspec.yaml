@@ -1,6 +1,7 @@
 name: dart_z80
 description: Zilog Z80 microprocessor emulator core
 version: 0.0.1
+repository: https://github.com/timsneath/z80
 
 environment:
   sdk: '>=2.17.0 <3.0.0'
