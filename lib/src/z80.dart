@@ -20,12 +20,27 @@ typedef PortWriteFunction = void Function(int, int);
 
 int defaultPortReadFunction(int port) {
   print('Z80: read port $port');
-  return 0;
+  return highByte(port);
 }
 
 void defaultPortWriteFunction(int addr, int value) {
   print('Z80: write $value to $addr');
 }
+
+// Opcodes that can be prefixed with DD or FD, but are the same as the
+// unprefixed versions (albeit slower).
+const _extendedCodes = [
+  0x04, 0x05, 0x06, 0x0c, 0x0d, 0x0e,
+  0x14, 0x15, 0x16, 0x1c, 0x1d, 0x1e,
+  0x3c, 0x3d, 0x3e, // inc/dec
+  0x40, 0x41, 0x42, 0x43, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4f,
+  0x50, 0x51, 0x52, 0x53, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5f, // ld
+  0x78, 0x79, 0x7a, 0x7b, 0x7f,
+  0x80, 0x81, 0x82, 0x83, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8f,
+  0x90, 0x91, 0x92, 0x93, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9f,
+  0xa0, 0xa1, 0xa2, 0xa3, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xaf,
+  0xb0, 0xb1, 0xb2, 0xb3, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbf // add/sub/and/or
+];
 
 class Z80 {
   Memory memory;
@@ -1144,16 +1159,16 @@ class Z80 {
   }
 
   // Port operations and interrupts
-  int IN(int portNumber) {
+  int IN(int reg, int portNumber) {
     final readByte = portRead(bc);
 
-    fS = isSign8(readByte);
-    fZ = isZero(readByte);
+    fS = isSign8(reg);
+    fZ = isZero(reg);
     fH = false;
-    fPV = isParity(readByte);
+    fPV = isParity(reg);
     fN = false;
-    f5 = isBitSet(readByte, 5);
-    f3 = isBitSet(readByte, 3);
+    f5 = isBitSet(reg, 5);
+    f3 = isBitSet(reg, 3);
 
     return readByte;
   }
@@ -2155,7 +2170,13 @@ class Z80 {
         break;
 
       default:
-        throw Exception("Opcode DD${toHex16(opCode)} not understood. ");
+        if (_extendedCodes.contains(opCode)) {
+          tStates += 4;
+          pc--; // go back one
+          executeNextInstruction();
+        } else {
+          throw Exception("Opcode DD${toHex16(opCode)} not understood. ");
+        }
     }
   }
 
@@ -2166,7 +2187,7 @@ class Z80 {
     switch (opCode) {
       // IN B, (C)
       case 0x40:
-        IN(c);
+        IN(b, c);
         tStates += 12;
         break;
 
@@ -2228,7 +2249,7 @@ class Z80 {
 
       // IN C, (C)
       case 0x48:
-        c = IN(c);
+        c = IN(c, c);
         tStates += 12;
         break;
 
@@ -2264,7 +2285,7 @@ class Z80 {
 
       // IN D, (C)
       case 0x50:
-        d = IN(c);
+        d = IN(d, c);
         tStates += 12;
         break;
 
@@ -2310,7 +2331,7 @@ class Z80 {
 
       // IN E, (C)
       case 0x58:
-        e = IN(c);
+        e = IN(e, c);
         tStates += 12;
         break;
 
@@ -2353,7 +2374,7 @@ class Z80 {
 
       // IN H, (C)
       case 0x60:
-        h = IN(c);
+        h = IN(h, c);
         tStates += 12;
         break;
 
@@ -2381,7 +2402,7 @@ class Z80 {
 
       // IN L, (C)
       case 0x68:
-        l = IN(c);
+        l = IN(l, c);
         tStates += 12;
         break;
 
@@ -2410,7 +2431,7 @@ class Z80 {
 
       // IN (C)
       case 0x70:
-        IN(c);
+        IN(c, c);
         tStates += 12;
         break;
 
@@ -2433,7 +2454,7 @@ class Z80 {
 
       // IN A, (C)
       case 0x78:
-        a = IN(c);
+        a = IN(a, c);
         tStates += 12;
         break;
 
@@ -3199,7 +3220,13 @@ class Z80 {
         break;
 
       default:
-        throw Exception("Opcode FD${toHex16(opCode)} not understood. ");
+        if (_extendedCodes.contains(opCode)) {
+          tStates += 4; // instructions take an extra 4 bytes over unprefixed
+          pc--; // go back one
+          executeNextInstruction();
+        } else {
+          throw Exception("Opcode FD${toHex16(opCode)} not understood. ");
+        }
     }
   }
 

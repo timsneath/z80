@@ -4,8 +4,6 @@
 // which cover both documented and undocumented opcodes:
 //   http://fuse-emulator.sourceforge.net/
 
-// Run tests with `flutter test --plain-name=OPCODE` (for documented tests)
-
 import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
