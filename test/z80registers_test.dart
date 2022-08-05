@@ -3,7 +3,7 @@
 // Run tests with
 //   pub run test test/z80core_test.dart --no-color > test/results_z80core_test.txt
 
-import 'package:z80/z80.dart';
+import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
 late Memory memory;

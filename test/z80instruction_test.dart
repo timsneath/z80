@@ -1,6 +1,7 @@
-// z80instruction_test.dart -- test a common set of Z80 instructions against Zilog spec
+// z80instruction_test.dart -- test a common set of Z80 instructions against
+// Zilog spec
 
-import 'package:z80/z80.dart';
+import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
 Memory memory = Memory(isRomProtected: false);
@@ -10,7 +11,8 @@ void poke(int addr, int val) => memory.writeByte(addr, val);
 int peek(int addr) => memory.readByte(addr);
 
 void loadInstructions(List<int> instructions) {
-  // we pick this as a 'safe' location that doesn't clash with other instructions
+  // we pick this as a 'safe' location that doesn't clash with other
+  // instructions
   // TODO: randomize this, perhaps?
   const addr = 0xA000;
 

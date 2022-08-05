@@ -21,6 +21,7 @@ import 'dart:typed_data';
 import 'utility.dart';
 
 class Memory {
+  // TODO: Generalize
   static const romTop = 0x3FFF;
   static const ramTop = 0xFFFF;
 
