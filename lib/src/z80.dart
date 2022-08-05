@@ -19,12 +19,12 @@ typedef PortReadFunction = int Function(int);
 typedef PortWriteFunction = void Function(int, int);
 
 int defaultPortReadFunction(int port) {
-  print('Z80: read port $port');
+  // print('Z80: read port $port');
   return highByte(port);
 }
 
 void defaultPortWriteFunction(int addr, int value) {
-  print('Z80: write $value to $addr');
+  // print('Z80: write $value to $addr');
 }
 
 // Opcodes that can be prefixed with DD or FD, but are the same as the
@@ -2237,7 +2237,7 @@ class Z80 {
       case 0x46:
       case 0x66:
         im = 0;
-        print('IM 0');
+        // print('IM 0');
         tStates += 8;
         break;
 
@@ -2312,7 +2312,7 @@ class Z80 {
       case 0x6E:
       case 0x76:
         im = 1;
-        print('IM 1');
+        // print('IM 1');
         tStates += 8;
         break;
 
@@ -2357,7 +2357,7 @@ class Z80 {
       case 0x5E:
       case 0x7E:
         im = 2;
-        print('IM 2');
+        // print('IM 2');
         tStates += 8;
         break;
 

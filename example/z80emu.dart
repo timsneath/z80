@@ -73,9 +73,10 @@ void emulate(String filename) {
   // First member of ZEXTEST is state, so this is safe.
   do {
     z80.executeNextInstruction();
+    total++;
   } while (!isDone);
-  print('$total cycle(s) emulated.\n'
-      'For a Z80 running at ${cpuSpeed / 1000000}Mhz, '
+  print('\n$total cycle(s) emulated.\n'
+      'For a Z80 running at ${cpuSpeed / 1000000}MHz, '
       'that would be ${total / cpuSpeed} seconds '
       'or ${total / (3600 * cpuSpeed)} hour(s).');
 }
