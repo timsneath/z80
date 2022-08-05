@@ -1,6 +1,6 @@
 // z80core_test.dart -- test most basic functions of Z80 emulation
 
-import 'package:z80/z80.dart';
+import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
 void main() {

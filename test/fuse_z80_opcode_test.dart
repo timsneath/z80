@@ -6,7 +6,7 @@
 
 // Run tests with `flutter test --plain-name=OPCODE` (for documented tests)
 
-import 'package:z80/z80.dart';
+import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
 Memory memory = Memory(isRomProtected: false);
