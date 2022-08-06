@@ -7,7 +7,7 @@
 import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
-Memory memory = Memory(isRomProtected: false);
+Memory memory = Memory(0x10000);
 Z80 z80 = Z80(memory, startAddress: 0xA000);
 
 void poke(int addr, int val) => memory.writeByte(addr, val);

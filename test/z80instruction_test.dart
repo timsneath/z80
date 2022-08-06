@@ -4,25 +4,24 @@
 import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
-Memory memory = Memory(isRomProtected: false);
-Z80 z80 = Z80(memory, startAddress: 0xA000);
+// we pick this as a 'safe' location that doesn't clash with other
+// instructions
+const origin = 0xA000;
+
+Memory memory = Memory(64 * 1024);
+Z80 z80 = Z80(memory, startAddress: origin);
 
 void poke(int addr, int val) => memory.writeByte(addr, val);
 int peek(int addr) => memory.readByte(addr);
 
 void loadInstructions(List<int> instructions) {
-  // we pick this as a 'safe' location that doesn't clash with other
-  // instructions
-  // TODO: randomize this, perhaps?
-  const addr = 0xA000;
-
-  memory.load(addr, instructions);
-  memory.writeByte(addr + instructions.length, 0x76); // HALT instruction
+  memory.load(origin, instructions);
+  memory.writeByte(origin + instructions.length, 0x76); // HALT instruction
 }
 
 void execute(List<int> instructions) {
   loadInstructions(instructions);
-  z80.pc = 0xA000;
+  z80.pc = origin;
   while (!z80.cpuSuspended) {
     z80.executeNextInstruction();
   }

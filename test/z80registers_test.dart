@@ -8,8 +8,8 @@ late Z80 z80;
 
 void main() {
   setUp(() {
-    memory = Memory(isRomProtected: false);
-    z80 = Z80(memory, startAddress: 0xA000);
+    memory = Memory(0x1000);
+    z80 = Z80(memory, startAddress: 0x0100);
   });
   test("BC registers test", () {
     z80.b = 0xA0;
