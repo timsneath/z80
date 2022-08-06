@@ -15,17 +15,11 @@ import 'utility.dart';
 // We use register names for the fields and we don't fuss too much about this.
 // ignore_for_file: non_constant_identifier_names
 
-typedef PortReadFunction = int Function(int);
-typedef PortWriteFunction = void Function(int, int);
+typedef PortReadCallback = int Function(int);
+typedef PortWriteCallback = void Function(int, int);
 
-int defaultPortReadFunction(int port) {
-  // print('Z80: read port $port');
-  return highByte(port);
-}
-
-void defaultPortWriteFunction(int addr, int value) {
-  // print('Z80: write $value to $addr');
-}
+int defaultPortReadFunction(int port) => highByte(port);
+void defaultPortWriteFunction(int addr, int value) {}
 
 // Opcodes that can be prefixed with DD or FD, but are the same as the
 // unprefixed versions (albeit slower).
@@ -43,18 +37,18 @@ const _extendedCodes = [
 ];
 
 class Z80 {
-  Memory memory;
+  final Memory memory;
   bool cpuSuspended;
   int tStates;
 
-  late PortReadFunction portReadFunction;
-  late PortWriteFunction portWriteFunction;
+  late final PortReadCallback onPortRead;
+  late final PortWriteCallback onPortWrite;
 
   Z80(
     this.memory, {
     int startAddress = 0,
-    this.portReadFunction = defaultPortReadFunction,
-    this.portWriteFunction = defaultPortWriteFunction,
+    this.onPortRead = defaultPortReadFunction,
+    this.onPortWrite = defaultPortWriteFunction,
   })  : a = 0xFF,
         f = 0xFF,
         b = 0xFF,
@@ -160,49 +154,49 @@ class Z80 {
 
   int im; // Interrupt Mode
 
-  int get af => a * 256 + f;
+  int get af => (a << 8) + f;
   set af(int value) {
     a = highByte(value);
     f = lowByte(value);
   }
 
-  int get af_ => a_ * 256 + f_;
+  int get af_ => (a_ << 8) + f_;
   set af_(int value) {
     a_ = highByte(value);
     f_ = lowByte(value);
   }
 
-  int get bc => b * 256 + c;
+  int get bc => (b << 8) + c;
   set bc(int value) {
     b = highByte(value);
     c = lowByte(value);
   }
 
-  int get bc_ => b_ * 256 + c_;
+  int get bc_ => (b_ << 8) + c_;
   set bc_(int value) {
     b_ = highByte(value);
     c_ = lowByte(value);
   }
 
-  int get de => d * 256 + e;
+  int get de => (d << 8) + e;
   set de(int value) {
     d = highByte(value);
     e = lowByte(value);
   }
 
-  int get de_ => d_ * 256 + e_;
+  int get de_ => (d_ << 8) + e_;
   set de_(int value) {
     d_ = highByte(value);
     e_ = lowByte(value);
   }
 
-  int get hl => h * 256 + l;
+  int get hl => (h << 8) + l;
   set hl(int value) {
     h = highByte(value);
     l = lowByte(value);
   }
 
-  int get hl_ => h_ * 256 + l_;
+  int get hl_ => (h_ << 8) + l_;
   set hl_(int value) {
     h_ = highByte(value);
     l_ = lowByte(value);
@@ -1391,13 +1385,9 @@ class Z80 {
     }
   }
 
-  int portRead(int port) {
-    return portReadFunction(port);
-  }
+  int portRead(int port) => onPortRead(port);
 
-  void portWrite(int addr, int value) {
-    portWriteFunction(addr, value);
-  }
+  void portWrite(int addr, int value) => onPortWrite(addr, value);
 
   void rot(int operation, int register) {
     int Function(int) rotFunction;

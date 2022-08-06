@@ -9,15 +9,13 @@ const cyclesPerStep = (cpuSpeed ~/ 50);
 const maxStringLength = 100;
 
 final memory = Memory(64 * 1024);
-final z80 =
-    Z80(memory, portReadFunction: portRead, portWriteFunction: portWrite);
+final z80 = Z80(memory, onPortRead: portRead, onPortWrite: portWrite);
 
 bool isDone = false;
 
 /* Emulate CP/M bdos call 5 functions 2 (output character on screen) and 9
  * (output dollar-terminated string to screen).
  */
-
 int portRead(int port) {
   if (z80.c == 2) {
     stdout.write(String.fromCharCode(z80.e));
