@@ -49,14 +49,10 @@ class Z80 {
     int startAddress = 0,
     this.onPortRead = defaultPortReadFunction,
     this.onPortWrite = defaultPortWriteFunction,
-  })  : a = 0xFF,
-        f = 0xFF,
-        b = 0xFF,
-        c = 0xFF,
-        d = 0xFF,
-        e = 0xFF,
-        h = 0xFF,
-        l = 0xFF,
+  })  : af = 0xFFFF,
+        bc = 0xFFFF,
+        de = 0xFFFF,
+        hl = 0xFFFF,
         a_ = 0xFF,
         f_ = 0xFF,
         b_ = 0xFF,
@@ -80,14 +76,23 @@ class Z80 {
   void reset() {
     // Initial register states are set per section 2.4 of
     //  http://www.myquest.nl/z80undocumented/z80-documented-v0.91.pdf
-    af = af_ = 0xFFFF;
-    bc = bc_ = 0xFFFF;
-    de = de_ = 0xFFFF;
-    hl = hl_ = 0xFFFF;
+    af = 0xFFFF;
+    bc = 0xFFFF;
+    de = 0xFFFF;
+    hl = 0xFFFF;
     ix = 0xFFFF;
     iy = 0xFFFF;
     sp = 0xFFFF;
     pc = 0x0000;
+    a_ = 0xFF;
+    f_ = 0xFF;
+    b_ = 0xFF;
+    c_ = 0xFF;
+    d_ = 0xFF;
+    e_ = 0xFF;
+    h_ = 0xFF;
+    l_ = 0xFF;
+
     iff1 = iff2 = false;
     im = 0;
     i = r = 0xFF;
@@ -137,8 +142,7 @@ class Z80 {
   };
 
   // Core registers
-  int a, f, b, c, d, e, h, l;
-  int ix, iy;
+  int af, bc, de, hl, ix, iy;
 
   // The alternate register set (A', F', B', C', D', E', H', L')
   int a_, f_, b_, c_, d_, e_, h_, l_;
@@ -154,49 +158,49 @@ class Z80 {
 
   int im; // Interrupt Mode
 
-  int get af => (a << 8) + f;
-  set af(int value) {
-    a = highByte(value);
-    f = lowByte(value);
-  }
+  int get a => highByte(af);
+  set a(int value) => af = createWord(value, f);
 
-  int get af_ => (a_ << 8) + f_;
+  int get f => lowByte(af);
+  set f(int value) => af = createWord(a, value);
+
+  int get b => highByte(bc);
+  set b(int value) => bc = createWord(value, c);
+
+  int get c => lowByte(bc);
+  set c(int value) => bc = createWord(b, value);
+
+  int get d => highByte(de);
+  set d(int value) => de = createWord(value, e);
+
+  int get e => lowByte(de);
+  set e(int value) => de = createWord(d, value);
+
+  int get h => highByte(hl);
+  set h(int value) => hl = createWord(value, l);
+
+  int get l => lowByte(hl);
+  set l(int value) => hl = createWord(h, value);
+
+  int get af_ => createWord(a_, f_);
   set af_(int value) {
     a_ = highByte(value);
     f_ = lowByte(value);
   }
 
-  int get bc => (b << 8) + c;
-  set bc(int value) {
-    b = highByte(value);
-    c = lowByte(value);
-  }
-
-  int get bc_ => (b_ << 8) + c_;
+  int get bc_ => createWord(b_, c_);
   set bc_(int value) {
     b_ = highByte(value);
     c_ = lowByte(value);
   }
 
-  int get de => (d << 8) + e;
-  set de(int value) {
-    d = highByte(value);
-    e = lowByte(value);
-  }
-
-  int get de_ => (d_ << 8) + e_;
+  int get de_ => createWord(d_, e_);
   set de_(int value) {
     d_ = highByte(value);
     e_ = lowByte(value);
   }
 
-  int get hl => (h << 8) + l;
-  set hl(int value) {
-    h = highByte(value);
-    l = lowByte(value);
-  }
-
-  int get hl_ => (h_ << 8) + l_;
+  int get hl_ => createWord(h_, l_);
   set hl_(int value) {
     h_ = highByte(value);
     l_ = lowByte(value);
