@@ -3,12 +3,12 @@
 import 'package:dart_z80/dart_z80.dart';
 import 'package:test/test.dart';
 
-late Memory memory;
+late RandomAccessMemory memory;
 late Z80 z80;
 
 void main() {
   setUp(() {
-    memory = Memory(0x1000);
+    memory = RandomAccessMemory(0x1000);
     z80 = Z80(memory, startAddress: 0x0100);
   });
   test("BC registers test", () {

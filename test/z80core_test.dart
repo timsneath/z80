@@ -5,7 +5,7 @@ import 'package:test/test.dart';
 
 void main() {
   test("Initialization test", () {
-    final mem = Memory(64 * 1024);
+    final mem = RandomAccessMemory(64 * 1024);
     mem.writeByte(0xFFFF, 255);
     final z80 = Z80(mem);
     z80.b = 0xBE;
@@ -14,7 +14,7 @@ void main() {
   });
 
   test("Flags test", () {
-    final mem = Memory(64 * 1024);
+    final mem = RandomAccessMemory(64 * 1024);
     final z80 = Z80(mem);
     z80.a = 0;
     z80.f = 0;
@@ -27,7 +27,7 @@ void main() {
   });
 
   test("Instruction test", () {
-    final mem = Memory(64 * 1024);
+    final mem = RandomAccessMemory(64 * 1024);
     final z80 = Z80(mem);
     z80.af = 0;
     z80.b = 0xFF;

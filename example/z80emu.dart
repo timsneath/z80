@@ -8,7 +8,7 @@ const cpuSpeed = 4000000;
 const cyclesPerStep = (cpuSpeed ~/ 50);
 const maxStringLength = 100;
 
-final memory = Memory(64 * 1024);
+final memory = RandomAccessMemory(64 * 1024);
 final z80 = Z80(memory, onPortRead: portRead, onPortWrite: portWrite);
 
 bool isDone = false;
