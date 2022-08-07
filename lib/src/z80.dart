@@ -53,14 +53,10 @@ class Z80 {
         bc = 0xFFFF,
         de = 0xFFFF,
         hl = 0xFFFF,
-        a_ = 0xFF,
-        f_ = 0xFF,
-        b_ = 0xFF,
-        c_ = 0xFF,
-        d_ = 0xFF,
-        e_ = 0xFF,
-        h_ = 0xFF,
-        l_ = 0xFF,
+        af_ = 0xFFFF,
+        bc_ = 0xFFFF,
+        de_ = 0xFFFF,
+        hl_ = 0xFFFF,
         ix = 0xFFFF,
         iy = 0xFFFF,
         sp = 0xFFFF,
@@ -84,15 +80,10 @@ class Z80 {
     iy = 0xFFFF;
     sp = 0xFFFF;
     pc = 0x0000;
-    a_ = 0xFF;
-    f_ = 0xFF;
-    b_ = 0xFF;
-    c_ = 0xFF;
-    d_ = 0xFF;
-    e_ = 0xFF;
-    h_ = 0xFF;
-    l_ = 0xFF;
-
+    af_ = 0xFFFF;
+    bc_ = 0xFFFF;
+    de_ = 0xFFFF;
+    hl_ = 0xFFFF;
     iff1 = iff2 = false;
     im = 0;
     i = r = 0xFF;
@@ -145,7 +136,7 @@ class Z80 {
   int af, bc, de, hl, ix, iy;
 
   // The alternate register set (A', F', B', C', D', E', H', L')
-  int a_, f_, b_, c_, d_, e_, h_, l_;
+  int af_, bc_, de_, hl_;
 
   int i; // Interrupt Page Address register
   int r; // Memory Refresh register
@@ -159,52 +150,52 @@ class Z80 {
   int im; // Interrupt Mode
 
   int get a => highByte(af);
-  set a(int value) => af = createWord(value, f);
+  set a(int value) => af = (value << 8) + f;
 
   int get f => lowByte(af);
-  set f(int value) => af = createWord(a, value);
+  set f(int value) => af = (a << 8) + value;
 
   int get b => highByte(bc);
-  set b(int value) => bc = createWord(value, c);
+  set b(int value) => bc = (value << 8) + c;
 
   int get c => lowByte(bc);
-  set c(int value) => bc = createWord(b, value);
+  set c(int value) => bc = (b << 8) + value;
 
   int get d => highByte(de);
-  set d(int value) => de = createWord(value, e);
+  set d(int value) => de = (value << 8) + e;
 
   int get e => lowByte(de);
-  set e(int value) => de = createWord(d, value);
+  set e(int value) => de = (d << 8) + value;
 
   int get h => highByte(hl);
-  set h(int value) => hl = createWord(value, l);
+  set h(int value) => hl = (value << 8) + l;
 
   int get l => lowByte(hl);
-  set l(int value) => hl = createWord(h, value);
+  set l(int value) => hl = (h << 8) + value;
 
-  int get af_ => createWord(a_, f_);
-  set af_(int value) {
-    a_ = highByte(value);
-    f_ = lowByte(value);
-  }
+  int get a_ => highByte(af_);
+  set a_(int value) => af_ = (value << 8) + f_;
 
-  int get bc_ => createWord(b_, c_);
-  set bc_(int value) {
-    b_ = highByte(value);
-    c_ = lowByte(value);
-  }
+  int get f_ => lowByte(af_);
+  set f_(int value) => af_ = (a_ << 8) + value;
 
-  int get de_ => createWord(d_, e_);
-  set de_(int value) {
-    d_ = highByte(value);
-    e_ = lowByte(value);
-  }
+  int get b_ => highByte(bc_);
+  set b_(int value) => bc_ = (value << 8) + c_;
 
-  int get hl_ => createWord(h_, l_);
-  set hl_(int value) {
-    h_ = highByte(value);
-    l_ = lowByte(value);
-  }
+  int get c_ => lowByte(bc_);
+  set c_(int value) => bc_ = (b_ << 8) + value;
+
+  int get d_ => highByte(de_);
+  set d_(int value) => de_ = (value << 8) + e_;
+
+  int get e_ => lowByte(de_);
+  set e_(int value) => de_ = (d_ << 8) + value;
+
+  int get h_ => highByte(hl_);
+  set h_(int value) => hl_ = (value << 8) + l_;
+
+  int get l_ => lowByte(hl_);
+  set l_(int value) => hl_ = (h_ << 8) + value;
 
   int get ixh => (ix & 0xFF00) >> 8;
   int get ixl => ix & 0x00FF;
