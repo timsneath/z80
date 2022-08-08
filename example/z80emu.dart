@@ -4,67 +4,60 @@ import 'package:dart_z80/dart_z80.dart';
 
 // Runs the ZEXDOC and ZEXALL test suites.
 
-const cpuSpeed = 4000000;
+const cpuSpeed = 3500000; // Zilog Z80A used in ZX Spectrum clocked at 3.5MHz
 const cyclesPerStep = (cpuSpeed ~/ 50);
 const maxStringLength = 100;
 
-final memory = RandomAccessMemory(64 * 1024);
+final memory = RandomAccessMemory(64 * 1024); // 64KB
 final z80 = Z80(memory, onPortRead: portRead, onPortWrite: portWrite);
 
+/// Track whether the test suite has completed and exit.
 bool isDone = false;
 
-/* Emulate CP/M bdos call 5 functions 2 (output character on screen) and 9
- * (output dollar-terminated string to screen).
- */
+// The test suite uses two CP/M BDOS calls, which we emulate here. Per
+// https://www.seasip.info/Cpm/bdos.html, to make a CP/M system call, you load C
+// with the chosen function, DE with a parameter, and then CALL 5.
+//
+// The function that is set below calls IN, which is trapped by this function.
+// - function 2: print ASCII character in E to screen
+// - function 9: print dollar-terminated string pointed to by DE to screen
 int portRead(int port) {
-  if (z80.c == 2) {
-    stdout.write(String.fromCharCode(z80.e));
-  } else if (z80.c == 9) {
-    var charCount = 0;
+  switch (z80.c) {
+    case 2:
+      stdout.write(String.fromCharCode(z80.e));
+      return 0;
+    case 9:
+      var charCount = 0;
 
-    for (var addr = z80.de;; addr++) {
-      final char = String.fromCharCode(memory.readByte(addr));
-      if (char == '\$' || ++charCount >= maxStringLength) break;
+      for (var addr = z80.de;; addr++) {
+        final char = String.fromCharCode(memory.readByte(addr));
+        if (char == '\$' || ++charCount >= maxStringLength) break;
 
-      stdout.write(String.fromCharCode(memory.readByte(addr)));
-    }
+        stdout.write(String.fromCharCode(memory.readByte(addr)));
+      }
 
-    return 0;
+      return 0;
+    default:
+      return 0;
   }
-
-  return 0;
 }
 
-void portWrite(int addr, int value) {
-  isDone = true;
-}
+void portWrite(int addr, int value) => isDone = true;
 
-void main() {
-  final start = DateTime.now();
-  emulate('testfiles/zexdoc.com');
-  // emulate('testfiles/zexall.com');
-  final stop = DateTime.now();
-  final duration = stop.difference(start);
-  print('Emulating zexdoc and zexall took a total of'
-      ' ${duration.inSeconds} seconds');
-}
-
-void emulate(String filename) {
+void emulate(File file) {
   var total = 0;
 
-  print('Testing "$filename"...');
-
-  final file = File(filename).readAsBytesSync();
+  print('Testing "${file.path}"...');
   z80.pc = 0x100;
-  memory.load(0x100, file);
+  memory.load(0x100, file.readAsBytesSync());
 
-  // Patch the memory of the program. Reset at 0x0000 is trapped by an OUT which
-  // will stop emulation. CP/M bdos call 5 is trapped by an IN. See
-  // Z80_INPUT_BYTE() and Z80_OUTPUT_BYTE() definitions in z80user.h.
-  memory.writeByte(0, 0xd3); /* OUT N, A */
+  // Patch memory locations to handle CP/M BDOS calls.
+  // Reset at 0x0000 (RST 0h) is trapped by an OUT which will stop emulation.
+  // CALL 5 is trapped by an IN.
+  memory.writeByte(0, 0xd3); /* OUT (00h), A */
   memory.writeByte(1, 0x00);
 
-  memory.writeByte(5, 0xdb); /* IN A, N */
+  memory.writeByte(5, 0xdb); /* IN A, (00h) */
   memory.writeByte(6, 0x00);
   memory.writeByte(7, 0xc9); /* RET */
 
@@ -77,4 +70,14 @@ void emulate(String filename) {
       'For a Z80 running at ${cpuSpeed / 1000000}MHz, '
       'that would be ${total / cpuSpeed} seconds '
       'or ${total / (3600 * cpuSpeed)} hour(s).');
+}
+
+void main() {
+  final start = DateTime.now();
+  emulate(File('example/testfiles/zexdoc.com'));
+  // emulate(File('example/testfiles/zexall.com'));
+  final stop = DateTime.now();
+  final duration = stop.difference(start);
+  print('Emulating zexdoc and zexall took a total of'
+      ' ${duration.inSeconds} seconds');
 }
