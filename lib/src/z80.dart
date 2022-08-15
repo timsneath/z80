@@ -1153,9 +1153,9 @@ class Z80 {
   }
 
   // Port operations and interrupts
-  int IN(int reg, int portNumber) {
-    final readByte = portRead(bc);
+  int IN(int reg, int portNumber) => portRead(bc);
 
+  void _inSetFlags(int reg) {
     fS = isSign8(reg);
     fZ = isZero(reg);
     fH = false;
@@ -1163,8 +1163,6 @@ class Z80 {
     fN = false;
     f5 = isBitSet(reg, 5);
     f3 = isBitSet(reg, 3);
-
-    return readByte;
   }
 
   void OUT(int portNumber, int value) {
@@ -2178,6 +2176,7 @@ class Z80 {
       // IN B, (C)
       case 0x40:
         IN(b, c);
+        _inSetFlags(b);
         tStates += 12;
         break;
 
@@ -2240,6 +2239,7 @@ class Z80 {
       // IN C, (C)
       case 0x48:
         c = IN(c, c);
+        _inSetFlags(c);
         tStates += 12;
         break;
 
@@ -2276,6 +2276,7 @@ class Z80 {
       // IN D, (C)
       case 0x50:
         d = IN(d, c);
+        _inSetFlags(d);
         tStates += 12;
         break;
 
@@ -2322,6 +2323,7 @@ class Z80 {
       // IN E, (C)
       case 0x58:
         e = IN(e, c);
+        _inSetFlags(e);
         tStates += 12;
         break;
 
@@ -2365,6 +2367,7 @@ class Z80 {
       // IN H, (C)
       case 0x60:
         h = IN(h, c);
+        _inSetFlags(h);
         tStates += 12;
         break;
 
@@ -2393,6 +2396,7 @@ class Z80 {
       // IN L, (C)
       case 0x68:
         l = IN(l, c);
+        _inSetFlags(l);
         tStates += 12;
         break;
 
@@ -2422,6 +2426,7 @@ class Z80 {
       // IN (C)
       case 0x70:
         IN(c, c);
+        _inSetFlags(c);
         tStates += 12;
         break;
 
@@ -2445,6 +2450,7 @@ class Z80 {
       // IN A, (C)
       case 0x78:
         a = IN(a, c);
+        _inSetFlags(a);
         tStates += 12;
         break;
 
