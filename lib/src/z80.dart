@@ -1383,6 +1383,7 @@ class Z80 {
     }
   }
 
+  // TODO: Need to fix this.
   int portRead(int port) => onPortRead(port);
 
   void portWrite(int addr, int value) => onPortWrite(addr, value);
