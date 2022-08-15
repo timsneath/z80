@@ -2427,7 +2427,6 @@ class Z80 {
       // IN (C)
       case 0x70:
         IN(c, c);
-        _inSetFlags(c);
         tStates += 12;
         break;
 
