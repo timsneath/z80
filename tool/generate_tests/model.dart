@@ -38,7 +38,7 @@ class Registers {
   final int sp;
   final int pc;
 
-  Registers(
+  const Registers(
       {this.af = 0,
       this.bc = 0,
       this.de = 0,
@@ -62,7 +62,7 @@ class SpecialRegisters {
   final bool halted;
   final int tStates;
 
-  SpecialRegisters(
+  const SpecialRegisters(
       {this.i = 0,
       this.r = 0,
       this.iff1 = 0,
