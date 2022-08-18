@@ -13,6 +13,9 @@ abstract class Memory {
   /// Load a list of byte data into memory, starting at origin.
   void load(int origin, Iterable<int> data);
 
+  /// Read a block of memory, starting at origin.
+  void read(int origin, int length);
+
   /// Read a single byte from the given memory location.
   int readByte(int address);
 
@@ -43,6 +46,11 @@ class RandomAccessMemory extends Memory {
   @override
   void load(int origin, Iterable<int> data) =>
       _memory.setRange(origin, origin + data.length, data);
+
+  /// Read a block of memory, starting at origin.
+  @override
+  Uint8List read(int origin, int length) =>
+      _memory.sublist(origin, origin + length);
 
   /// Read a single byte from the given memory location.
   @override
