@@ -27,14 +27,10 @@ void main() {
 // which cover both documented and undocumented opcodes:
 //   http://fuse-emulator.sourceforge.net/
 
-// Run tests with `flutter test --plain-name=OPCODE` (for documented tests)
+import 'package:dart_z80/dart_z80.dart';
+import 'package:test/test.dart';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:spectrum/core/z80.dart';
-import 'package:spectrum/core/memory.dart';
-import 'package:spectrum/core/utility.dart';
-
-Memory memory = Memory(isRomProtected: false);
+Memory memory = RandomAccessMemory(0x10000);
 Z80 z80 = Z80(memory, startAddress: 0xA000);
 
 void poke(int addr, int val) => memory.writeByte(addr, val);
