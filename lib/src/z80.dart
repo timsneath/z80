@@ -77,6 +77,7 @@ class Z80 {
         tStates = 0,
         cpuSuspended = false;
 
+  /// Reset the Z80 to an initial power-on configuration.
   void reset() {
     // Initial register states are set per section 2.4 of
     //  http://www.myquest.nl/z80undocumented/z80-documented-v0.91.pdf
@@ -96,6 +97,7 @@ class Z80 {
     cpuSuspended = false;
   }
 
+  /// Generate an interrupt.
   void interrupt({bool nonMaskable = false}) {
     if (nonMaskable) {
       pc = 0x0066;
