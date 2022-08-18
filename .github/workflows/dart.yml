@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fetch sources
+        uses: actions/checkout@v2
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Print Dart SDK version
+        run: dart --version
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze project source
+        run: dart analyze --fatal-warnings
+
+      - name: Run tests
+        run: dart test
+
+      - name: Add code coverage package
+        run: dart pub global activate coverage
+
+      - name: Generate code coverage
+        run: dart pub global run coverage:test_with_coverage
+
+      - name: Upload code coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: coverage/lcov.info
