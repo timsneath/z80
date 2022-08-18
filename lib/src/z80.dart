@@ -1153,7 +1153,6 @@ class Z80 {
   }
 
   // Port operations and interrupts
-  int IN(int reg, int portNumber) => portRead(bc);
 
   void _inSetFlags(int reg) {
     fS = isSign8(reg);
@@ -1173,7 +1172,14 @@ class Z80 {
     portWrite(portNumber, value);
   }
 
-  int INA(int portNumber) => portRead(portNumber);
+  void INA(int operandByte) {
+    // The operand is placed on the bottom half (A0 through A7) of the address
+    // bus to select the I/O device at one of 256 possible ports. The contents
+    // of the Accumulator also appear on the top half (A8 through A15) of the
+    // address bus at this time.
+    final addressBus = createWord(operandByte, a);
+    a = portRead(addressBus);
+  }
 
   void INI() {
     final memval = portRead(bc);
@@ -1384,9 +1390,9 @@ class Z80 {
   }
 
   // TODO: Need to fix this.
-  int portRead(int port) => onPortRead(port);
+  int portRead(int addressBus) => onPortRead(addressBus);
 
-  void portWrite(int addr, int value) => onPortWrite(addr, value);
+  void portWrite(int port, int value) => onPortWrite(port, value);
 
   void rot(int operation, int register) {
     int Function(int) rotFunction;
@@ -2176,7 +2182,7 @@ class Z80 {
     switch (opCode) {
       // IN B, (C)
       case 0x40:
-        IN(b, c);
+        b = portRead(bc);
         _inSetFlags(b);
         tStates += 12;
         break;
@@ -2239,7 +2245,7 @@ class Z80 {
 
       // IN C, (C)
       case 0x48:
-        c = IN(c, c);
+        c = portRead(bc);
         _inSetFlags(c);
         tStates += 12;
         break;
@@ -2276,7 +2282,7 @@ class Z80 {
 
       // IN D, (C)
       case 0x50:
-        d = IN(d, c);
+        d = portRead(bc);
         _inSetFlags(d);
         tStates += 12;
         break;
@@ -2323,7 +2329,7 @@ class Z80 {
 
       // IN E, (C)
       case 0x58:
-        e = IN(e, c);
+        e = portRead(bc);
         _inSetFlags(e);
         tStates += 12;
         break;
@@ -2367,7 +2373,7 @@ class Z80 {
 
       // IN H, (C)
       case 0x60:
-        h = IN(h, c);
+        h = portRead(bc);
         _inSetFlags(h);
         tStates += 12;
         break;
@@ -2396,7 +2402,7 @@ class Z80 {
 
       // IN L, (C)
       case 0x68:
-        l = IN(l, c);
+        l = portRead(bc);
         _inSetFlags(l);
         tStates += 12;
         break;
@@ -2426,7 +2432,7 @@ class Z80 {
 
       // IN (C)
       case 0x70:
-        IN(c, c);
+        portRead(bc);
         tStates += 12;
         break;
 
@@ -2449,7 +2455,7 @@ class Z80 {
 
       // IN A, (C)
       case 0x78:
-        a = IN(a, c);
+        a = portRead(bc);
         _inSetFlags(a);
         tStates += 12;
         break;
