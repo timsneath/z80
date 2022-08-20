@@ -3,9 +3,9 @@ The `examples/` folder contains several examples of using the Z80 emulator and a
 ## `test_z80.dart`
 
 `zexlax` is a comprehensive test suite for validating the accuracy of a Z80
-emulator, designed to run on any Z80 emulator. The emulator takes a long time to
-run (several hours on a Z80 processor clocked at 3.5MHz, several minutes on this
-emulator running on a modern processor).
+emulator, designed to run on any Z80 emulator. The test suite takes a long time
+to run (several hours on a Z80 processor clocked at 3.5MHz, several minutes on
+this emulator running on a modern processor).
 
 The Dart file loads the `zexlax` test suite and executes it, demonstrating how
 to use the emulator itself and showing how to poke values into memory.
