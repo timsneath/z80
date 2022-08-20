@@ -37,7 +37,7 @@ const _extendedCodes = [
 ];
 
 class Z80 {
-  final Memory memory;
+  final MemoryBase memory;
   int tStates;
 
   late final PortReadCallback onPortRead;

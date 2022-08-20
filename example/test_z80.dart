@@ -8,12 +8,6 @@ const cpuSpeed = 3500000; // Zilog Z80A used in ZX Spectrum clocked at 3.5MHz
 const cyclesPerStep = (cpuSpeed ~/ 50);
 const maxStringLength = 100;
 
-final memory = RandomAccessMemory(64 * 1024); // 64KB
-final z80 = Z80(memory, onPortRead: portRead, onPortWrite: portWrite);
-
-/// Track whether the test suite has completed and exit.
-bool isDone = false;
-
 // The test suite uses two CP/M BDOS calls, which we emulate here. Per
 // https://www.seasip.info/Cpm/bdos.html, to make a CP/M system call, you load C
 // with the chosen function, DE with a parameter, and then CALL 5.
@@ -72,12 +66,16 @@ void emulate(File file) {
       'or ${total / (3600 * cpuSpeed)} hour(s).');
 }
 
+final memory = RAM(64 * 1024); // 64KB
+final z80 = Z80(memory, onPortRead: portRead, onPortWrite: portWrite);
+bool isDone = false;
+
 void main() {
   final start = DateTime.now();
   emulate(File('example/testfiles/zexdoc.com'));
   // emulate(File('example/testfiles/zexall.com'));
   final stop = DateTime.now();
   final duration = stop.difference(start);
-  print('Emulating zexdoc and zexall took a total of'
+  print('Emulating zexdoc took a total of'
       ' ${duration.inSeconds} seconds');
 }

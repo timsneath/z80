@@ -7,7 +7,10 @@ A functional Zilog Z80 microprocessor emulator written in Dart. Originally
 intended for use with Cambridge, a ZX Spectrum emulator
 (<https://github.com/timsneath/cambridge>).
 
-The emulator itself is licensed under the MIT license (see LICENSE).
+The emulator passes the comprehensive FUSE test suite, along with the ZEXDOC
+(sometimes referred to as `zexlax` test suite). Not all undocumented registers
+or flags are implemented (e.g. the `W` register is not implemented).
 
-The ZEXALL and ZEXDOC test suites included with this emulator are licensed under
-GPL, per the separate license in that folder.
+The emulator itself is licensed under the MIT license (see LICENSE). The ZEXALL
+and ZEXDOC test suites included with this emulator are licensed under GPL, per
+the separate license in that folder.

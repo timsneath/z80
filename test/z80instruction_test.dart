@@ -9,7 +9,7 @@ import 'package:test/test.dart';
 const origin = 0xA000;
 const haltOpcode = 0x76;
 
-RandomAccessMemory memory = RandomAccessMemory(64 * 1024);
+RAM memory = RAM(64 * 1024);
 Z80 z80 = Z80(memory, startAddress: origin);
 
 void poke(int addr, int val) => memory.writeByte(addr, val);
