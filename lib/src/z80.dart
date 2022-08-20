@@ -18,8 +18,8 @@ import 'utility.dart';
 typedef PortReadCallback = int Function(int);
 typedef PortWriteCallback = void Function(int, int);
 
-int defaultPortReadFunction(int port) => highByte(port);
-void defaultPortWriteFunction(int addr, int value) {}
+int _defaultPortReadFunction(int port) => highByte(port);
+void _defaultPortWriteFunction(int addr, int value) {}
 
 // Opcodes that can be prefixed with DD or FD, but are the same as the
 // unprefixed versions (albeit slower).
@@ -37,17 +37,19 @@ const _extendedCodes = [
 ];
 
 class Z80 {
-  final MemoryBase memory;
+  final MemoryBase _memory;
+  final PortReadCallback onPortRead;
+  final PortWriteCallback onPortWrite;
+
+  /// Number of clock cycles that have occurred since the last clock reset.
   int tStates;
 
-  late final PortReadCallback onPortRead;
-  late final PortWriteCallback onPortWrite;
-
+  /// Initializes the Z80 emulator.
   Z80(
-    this.memory, {
+    this._memory, {
     int startAddress = 0,
-    this.onPortRead = defaultPortReadFunction,
-    this.onPortWrite = defaultPortWriteFunction,
+    this.onPortRead = _defaultPortReadFunction,
+    this.onPortWrite = _defaultPortWriteFunction,
   })  : a = 0xFF,
         f = 0xFF,
         b = 0xFF,
@@ -115,7 +117,7 @@ class Z80 {
             PUSH(pc);
             final address = createWord(0, i);
 
-            pc = memory.readWord(address);
+            pc = _memory.readWord(address);
             break;
         }
       }
@@ -162,6 +164,7 @@ class Z80 {
     f = lowByte(value);
   }
 
+  /// The AF' register
   int get af_ => (a_ << 8) + f_;
   set af_(int value) {
     a_ = highByte(value);
@@ -174,6 +177,7 @@ class Z80 {
     c = lowByte(value);
   }
 
+  /// The BC' register
   int get bc_ => (b_ << 8) + c_;
   set bc_(int value) {
     b_ = highByte(value);
@@ -186,6 +190,7 @@ class Z80 {
     e = lowByte(value);
   }
 
+  /// The DE' register
   int get de_ => (d_ << 8) + e_;
   set de_(int value) {
     d_ = highByte(value);
@@ -198,6 +203,7 @@ class Z80 {
     l = lowByte(value);
   }
 
+  /// The HL' register
   int get hl_ => (h_ << 8) + l_;
   set hl_(int value) {
     h_ = highByte(value);
@@ -229,31 +235,66 @@ class Z80 {
     iy = (hi << 8) + (value & 0xFF);
   }
 
+  /// The carry (C) flag.
+  ///
+  /// Set if there was a carry after the most significant bit.
   bool get fC => f & flags['C']! == flags['C'];
+  set fC(bool value) => f = (value ? (f | flags['C']!) : (f & ~flags['C']!));
+
+  /// The add/subtract (N) flag.
+  ///
+  /// Shows whether the last operation was an addition (false) or a subtraction
+  /// (true).
   bool get fN => f & flags['N']! == flags['N'];
+  set fN(bool value) => f = (value ? (f | flags['N']!) : (f & ~flags['N']!));
+
+  /// The parity / overflow (P/V) flag.
+  ///
+  /// Either the parity of the result, or the twos-complement overflow (set if
+  /// the twos-complement value doesn't fit in the register).
   bool get fPV => f & flags['P']! == flags['P'];
+  set fPV(bool value) => f = (value ? (f | flags['P']!) : (f & ~flags['P']!));
+
+  /// The undocumented (X) flag.
+  ///
+  /// A copy of bit 3 of the result.
   bool get f3 => f & flags['F3']! == flags['F3'];
+  set f3(bool value) => f = (value ? (f | flags['F3']!) : (f & ~flags['F3']!));
+
+  /// The half-carry (H) flag.
+  ///
+  /// Used for BCD correction with the `DAA` instruction.
   bool get fH => f & flags['H']! == flags['H'];
+  set fH(bool value) => f = (value ? (f | flags['H']!) : (f & ~flags['H']!));
+
+  /// The undocumented (Y) flag.
+  ///
+  /// A copy of bit 5 of the result.
   bool get f5 => f & flags['F5']! == flags['F5'];
+  set f5(bool value) => f = (value ? (f | flags['F5']!) : (f & ~flags['F5']!));
+
+  /// The zero (Z) flag.
+  ///
+  /// Set if the result is zero.
   bool get fZ => f & flags['Z']! == flags['Z'];
+  set fZ(bool value) => f = (value ? (f | flags['Z']!) : (f & ~flags['Z']!));
+
+  /// The signed (S) flag.
+  ///
+  /// Set if the twos-complement value is negative. That is, set if the most
+  /// significant bit is set.
   bool get fS => f & flags['S']! == flags['S'];
 
-  set fC(bool value) => f = (value ? (f | flags['C']!) : (f & ~flags['C']!));
-  set fN(bool value) => f = (value ? (f | flags['N']!) : (f & ~flags['N']!));
-  set fPV(bool value) => f = (value ? (f | flags['P']!) : (f & ~flags['P']!));
-  set f3(bool value) => f = (value ? (f | flags['F3']!) : (f & ~flags['F3']!));
-  set fH(bool value) => f = (value ? (f | flags['H']!) : (f & ~flags['H']!));
-  set f5(bool value) => f = (value ? (f | flags['F5']!) : (f & ~flags['F5']!));
-  set fZ(bool value) => f = (value ? (f | flags['Z']!) : (f & ~flags['Z']!));
   set fS(bool value) => f = (value ? (f | flags['S']!) : (f & ~flags['S']!));
 
   // *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
   // INSTRUCTIONS
   // *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
 
+  /// Load and Increment
   void LDI() {
-    final byteRead = memory.readByte(hl);
-    memory.writeByte(de, byteRead);
+    final byteRead = _memory.readByte(hl);
+    _memory.writeByte(de, byteRead);
 
     fPV = (bc - 1) != 0;
 
@@ -269,9 +310,10 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Load and Decrement
   void LDD() {
-    final byteRead = memory.readByte(hl);
-    memory.writeByte(de, byteRead);
+    final byteRead = _memory.readByte(hl);
+    _memory.writeByte(de, byteRead);
 
     de = (de - 1) % 0x10000;
     hl = (hl - 1) % 0x10000;
@@ -285,9 +327,10 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Load, Increment and Repeat
   void LDIR() {
-    final byteRead = memory.readByte(hl);
-    memory.writeByte(de, byteRead);
+    final byteRead = _memory.readByte(hl);
+    _memory.writeByte(de, byteRead);
 
     de = (de + 1) % 0x10000;
     hl = (hl + 1) % 0x10000;
@@ -307,9 +350,10 @@ class Z80 {
     }
   }
 
+  /// Load, Decrement and Repeat
   void LDDR() {
-    final byteRead = memory.readByte(hl);
-    memory.writeByte(de, byteRead);
+    final byteRead = _memory.readByte(hl);
+    _memory.writeByte(de, byteRead);
 
     de = (de - 1) % 0x10000;
     hl = (hl - 1) % 0x10000;
@@ -329,6 +373,8 @@ class Z80 {
   }
 
   // Arithmetic operations
+
+  /// Increment
   int INC(int reg) {
     final oldReg = reg;
     fPV = reg == 0x7F;
@@ -345,6 +391,7 @@ class Z80 {
     return reg;
   }
 
+  /// Decrement
   int DEC(int reg) {
     final oldReg = reg;
     fPV = reg == 0x80;
@@ -361,10 +408,10 @@ class Z80 {
     return reg;
   }
 
-  /// Add with carry (8-bit)
+  /// Add with Carry (8-bit)
   int ADC8(int x, int y) => ADD8(x, y, withCarry: fC);
 
-  /// Add with carry (16-bit)
+  /// Add with Carry (16-bit)
   int ADC16(int xx, int yy) {
     // overflow in add only occurs when operand polarities are the same
     final overflowCheck = isSign16(xx) == isSign16(yy);
@@ -382,6 +429,7 @@ class Z80 {
     return xx;
   }
 
+  /// Add (8-bit)
   int ADD8(int x, int y, {bool withCarry = false}) {
     final carry = withCarry ? 1 : 0;
     fH = (((x & 0x0F) + (y & 0x0F) + carry) & 0x10) == 0x10;
@@ -410,6 +458,7 @@ class Z80 {
     return x;
   }
 
+  /// Add (16-bit)
   int ADD16(int xx, int yy, {bool withCarry = false}) {
     final carry = withCarry ? 1 : 0;
 
@@ -425,8 +474,10 @@ class Z80 {
     return xx;
   }
 
+  /// Subtract with Carry (8-bit)
   int SBC8(int x, int y) => SUB8(x, y, withCarry: fC);
 
+  /// Subtract with Carry (16-bit)
   int SBC16(int xx, int yy) {
     final carry = fC ? 1 : 0;
 
@@ -456,6 +507,7 @@ class Z80 {
     return xx;
   }
 
+  /// Subtract (8-bit)
   int SUB8(int x, int y, {bool withCarry = false}) {
     final carry = withCarry ? 1 : 0;
 
@@ -487,14 +539,16 @@ class Z80 {
     return x;
   }
 
+  /// Compare
   void CP(int x) {
     SUB8(a, x);
     f5 = isBitSet(x, 5);
     f3 = isBitSet(x, 3);
   }
 
-  // algorithm from http://worldofspectrum.org/faq/reference/z80reference.htm
+  /// Decimal Adjust Accumulator
   void DAA() {
+    // algorithm from http://worldofspectrum.org/faq/reference/z80reference.htm
     var correctionFactor = 0;
     final oldA = a;
 
@@ -527,6 +581,7 @@ class Z80 {
   }
 
   // Flow operations
+  /// Call
   void CALL() {
     final callAddr = getNextWord();
 
@@ -537,6 +592,7 @@ class Z80 {
     tStates += 17;
   }
 
+  /// Jump Relative
   void JR(int jump) {
     // jump is treated as signed byte from -128 to 127
     jump = twocomp8(jump);
@@ -545,6 +601,7 @@ class Z80 {
     tStates += 12;
   }
 
+  /// Decrement and Jump if Not Zero
   void DJNZ(int jump) {
     b = (b - 1) % 0x100;
     if (b != 0) {
@@ -564,15 +621,15 @@ class Z80 {
   // Stack operations
   void PUSH(int val) {
     sp = (sp - 1) % 0x10000;
-    memory.writeByte(sp, highByte(val));
+    _memory.writeByte(sp, highByte(val));
     sp = (sp - 1) % 0x10000;
-    memory.writeByte(sp, lowByte(val));
+    _memory.writeByte(sp, lowByte(val));
   }
 
   int POP() {
-    final lo = memory.readByte(sp);
+    final lo = _memory.readByte(sp);
     sp = (sp + 1) % 0x10000;
-    final hi = memory.readByte(sp);
+    final hi = _memory.readByte(sp);
     sp = (sp + 1) % 0x10000;
     return (hi << 8) + lo;
   }
@@ -593,8 +650,9 @@ class Z80 {
 
   // Logic operations
 
+  /// Compare and Decrement
   void CPD() {
-    final val = memory.readByte(hl);
+    final val = _memory.readByte(hl);
     fH = (a & 0x0F) < (val & 0x0F);
     fS = isSign8(a - val);
     fZ = a == val;
@@ -608,8 +666,9 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Compare and Decrement Repeated
   void CPDR() {
-    final val = memory.readByte(hl);
+    final val = _memory.readByte(hl);
     fH = (a & 0x0F) < (val & 0x0F);
     fS = isSign8(a - val);
     fZ = a == val;
@@ -629,7 +688,7 @@ class Z80 {
   }
 
   void CPI() {
-    final val = memory.readByte(hl);
+    final val = _memory.readByte(hl);
     fH = (a & 0x0F) < (val & 0x0F);
     fS = isSign8(a - val);
     fZ = a == val;
@@ -644,7 +703,7 @@ class Z80 {
   }
 
   void CPIR() {
-    final val = memory.readByte(hl);
+    final val = _memory.readByte(hl);
     fH = (a & 0x0F) < (val & 0x0F);
     fS = isSign8(a - val);
     fZ = a == val;
@@ -735,6 +794,8 @@ class Z80 {
   }
 
   // TODO: Organize these into the same groups as the Z80 manual
+
+  /// Complement
   void CPL() {
     a = onecomp8(a);
     f5 = isBitSet(a, 5);
@@ -745,6 +806,7 @@ class Z80 {
     tStates += 4;
   }
 
+  /// Set Carry Flag
   void SCF() {
     f5 = isBitSet(a, 5);
     f3 = isBitSet(a, 3);
@@ -753,6 +815,7 @@ class Z80 {
     fC = true;
   }
 
+  /// Clear Carry Flag
   void CCF() {
     f5 = isBitSet(a, 5);
     f3 = isBitSet(a, 3);
@@ -763,6 +826,7 @@ class Z80 {
     tStates += 4;
   }
 
+  /// Rotate Left Circular
   int RLC(int reg) {
     // rotates register r to the left
     // bit 7 is copied to carry and to bit 0
@@ -781,6 +845,7 @@ class Z80 {
     return reg;
   }
 
+  /// Rotate Left Circular Accumulator
   void RLCA() {
     // rotates register A to the left
     // bit 7 is copied to carry and to bit 0
@@ -796,6 +861,7 @@ class Z80 {
     tStates += 4;
   }
 
+  /// Rotate Right Circular
   int RRC(int reg) {
     fC = isBitSet(reg, 0);
     reg >>= 1;
@@ -812,6 +878,7 @@ class Z80 {
     return reg;
   }
 
+  /// Rotate Right Circular Accumulator
   void RRCA() {
     fC = isBitSet(a, 0);
     a >>= 1;
@@ -826,6 +893,7 @@ class Z80 {
     tStates += 4;
   }
 
+  /// Rotate Left
   int RL(int reg) {
     // rotates register r to the left, through carry.
     // carry becomes the LSB of the new r
@@ -847,6 +915,7 @@ class Z80 {
     return reg;
   }
 
+  /// Rotate Left Accumulator
   void RLA() {
     // rotates register r to the left, through carry.
     // carry becomes the LSB of the new r
@@ -866,6 +935,7 @@ class Z80 {
     tStates += 4;
   }
 
+  /// Rotate Right
   int RR(int reg) {
     final bit7 = fC;
 
@@ -885,6 +955,7 @@ class Z80 {
     return reg;
   }
 
+  /// Rotate Right Accumulator
   void RRA() {
     final bit7 = fC;
 
@@ -904,6 +975,7 @@ class Z80 {
     tStates += 4;
   }
 
+  /// Shift Left Arithmetic
   int SLA(int reg) {
     fC = isSign8(reg);
     reg = (reg << 1) % 0x100;
@@ -920,6 +992,7 @@ class Z80 {
     return reg;
   }
 
+  /// Shift Right Arithmetic
   int SRA(int reg) {
     final bit7 = isSign8(reg);
 
@@ -940,6 +1013,7 @@ class Z80 {
     return reg;
   }
 
+  /// Shift Left Logical
   int SLL(int reg) {
     // technically, SLL is undocumented
     fC = isBitSet(reg, 7);
@@ -958,6 +1032,7 @@ class Z80 {
     return reg;
   }
 
+  /// Shift Right Logical
   int SRL(int reg) {
     fC = isBitSet(reg, 0);
     reg >>= 1;
@@ -975,9 +1050,10 @@ class Z80 {
     return reg;
   }
 
+  /// Rotate Left BCD Digit
   void RLD() {
     // TODO: Overflow condition for this and RRD
-    final old_pHL = memory.readByte(hl);
+    final old_pHL = _memory.readByte(hl);
 
     var new_pHL = (old_pHL & 0x0F) << 4;
     new_pHL += a & 0x0F;
@@ -985,7 +1061,7 @@ class Z80 {
     a = a & 0xF0;
     a += (old_pHL & 0xF0) >> 4;
 
-    memory.writeByte(hl, new_pHL);
+    _memory.writeByte(hl, new_pHL);
 
     f5 = isBitSet(a, 5);
     f3 = isBitSet(a, 3);
@@ -999,8 +1075,9 @@ class Z80 {
     tStates += 18;
   }
 
+  /// Rotate Right BCD Digit
   void RRD() {
-    final old_pHL = memory.readByte(hl);
+    final old_pHL = _memory.readByte(hl);
 
     var new_pHL = (a & 0x0F) << 4;
     new_pHL += (old_pHL & 0xF0) >> 4;
@@ -1008,7 +1085,7 @@ class Z80 {
     a = a & 0xF0;
     a += old_pHL & 0x0F;
 
-    memory.writeByte(hl, new_pHL);
+    _memory.writeByte(hl, new_pHL);
 
     f5 = isBitSet(a, 5);
     f3 = isBitSet(a, 3);
@@ -1062,7 +1139,7 @@ class Z80 {
         fPV = fZ;
         break;
       case 0x6:
-        final val = memory.readByte(hl);
+        final val = _memory.readByte(hl);
         fZ = !isBitSet(val, bitToTest);
         // NOTE: undocumented bits 3 and 5 for this instruction come from an
         // internal register 'W' that is highly undocumented. This really
@@ -1111,7 +1188,7 @@ class Z80 {
         l = resetBit(l, bitToReset);
         break;
       case 0x6:
-        memory.writeByte(hl, resetBit(memory.readByte(hl), bitToReset));
+        _memory.writeByte(hl, resetBit(_memory.readByte(hl), bitToReset));
         break;
       case 0x7:
         a = resetBit(a, bitToReset);
@@ -1143,7 +1220,7 @@ class Z80 {
         l = setBit(l, bitToSet);
         break;
       case 0x6:
-        memory.writeByte(hl, setBit(memory.readByte(hl), bitToSet));
+        _memory.writeByte(hl, setBit(_memory.readByte(hl), bitToSet));
         break;
       case 0x7:
         a = setBit(a, bitToSet);
@@ -1167,11 +1244,11 @@ class Z80 {
   }
 
   void OUT(int portNumber, int value) {
-    portWrite(portNumber, value);
+    onPortWrite(portNumber, value);
   }
 
   void OUTA(int portNumber, int value) {
-    portWrite(portNumber, value);
+    onPortWrite(portNumber, value);
   }
 
   void INA(int operandByte) {
@@ -1180,12 +1257,13 @@ class Z80 {
     // of the Accumulator also appear on the top half (A8 through A15) of the
     // address bus at this time.
     final addressBus = createWord(operandByte, a);
-    a = portRead(addressBus);
+    a = onPortRead(addressBus);
   }
 
+  /// Input and Increment
   void INI() {
-    final memval = portRead(bc);
-    memory.writeByte(hl, memval);
+    final memval = onPortRead(bc);
+    _memory.writeByte(hl, memval);
     hl = (hl + 1) % 0x10000;
     b = (b - 1) % 0x100;
 
@@ -1201,9 +1279,10 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Output and Increment
   void OUTI() {
-    final memval = memory.readByte(hl);
-    portWrite(c, memval);
+    final memval = _memory.readByte(hl);
+    onPortWrite(c, memval);
     hl = (hl + 1) % 0x10000;
     b = (b - 1) % 0x100;
 
@@ -1219,9 +1298,10 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Input and Decrement
   void IND() {
-    final memval = portRead(bc);
-    memory.writeByte(hl, memval);
+    final memval = onPortRead(bc);
+    _memory.writeByte(hl, memval);
     hl = (hl - 1) % 0x10000;
     b = (b - 1) % 0x100;
 
@@ -1236,9 +1316,10 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Output and Decrement
   void OUTD() {
-    final memval = memory.readByte(hl);
-    portWrite(c, memval);
+    final memval = _memory.readByte(hl);
+    onPortWrite(c, memval);
     hl = (hl - 1) % 0x10000;
     b = (b - 1) % 0x100;
 
@@ -1255,9 +1336,10 @@ class Z80 {
     tStates += 16;
   }
 
+  /// Input, Increment and Repeat
   void INIR() {
-    final memval = portRead(bc);
-    memory.writeByte(hl, memval);
+    final memval = onPortRead(bc);
+    _memory.writeByte(hl, memval);
     hl = (hl + 1) % 0x10000;
     b = (b - 1) % 0x100;
 
@@ -1278,9 +1360,10 @@ class Z80 {
     }
   }
 
+  /// Output, Increment and Repeat
   void OTIR() {
-    final memval = memory.readByte(hl);
-    portWrite(c, memval);
+    final memval = _memory.readByte(hl);
+    onPortWrite(c, memval);
 
     hl = (hl + 1) % 0x10000;
     b = (b - 1) % 0x100;
@@ -1303,9 +1386,10 @@ class Z80 {
     }
   }
 
+  /// Input, Decrement and Repeat
   void INDR() {
-    final memval = portRead(bc);
-    memory.writeByte(hl, memval);
+    final memval = onPortRead(bc);
+    _memory.writeByte(hl, memval);
     hl = (hl - 1) % 0x10000;
     b = (b - 1) % 0x100;
 
@@ -1326,9 +1410,10 @@ class Z80 {
     }
   }
 
+  /// Output, Decrement and Repeat
   void OTDR() {
-    final memval = memory.readByte(hl);
-    portWrite(c, memval);
+    final memval = _memory.readByte(hl);
+    onPortWrite(c, memval);
 
     hl = (hl - 1) % 0x10000;
     b = (b - 1) % 0x100;
@@ -1357,18 +1442,18 @@ class Z80 {
 
   // Use for debugging, where we want to be able to see what's coming without
   // affecting PC
-  int previewByte(int displ) => memory.readByte(pc + displ);
-  int previewWord(int displ) => memory.readWord(pc + displ);
+  int previewByte(int displ) => _memory.readByte(pc + displ);
+  int previewWord(int displ) => _memory.readWord(pc + displ);
 
   // Use for execution, where we want to move through the program
   int getNextByte() {
-    final byteRead = memory.readByte(pc);
+    final byteRead = _memory.readByte(pc);
     pc = (pc + 1) % 0x10000;
     return byteRead;
   }
 
   int getNextWord() {
-    final wordRead = memory.readWord(pc);
+    final wordRead = _memory.readWord(pc);
     pc = (pc + 2) % 0x10000;
     return wordRead;
   }
@@ -1390,11 +1475,6 @@ class Z80 {
       return (iy + displ) % 0x10000;
     }
   }
-
-  // TODO: Need to fix this.
-  int portRead(int addressBus) => onPortRead(addressBus);
-
-  void portWrite(int port, int value) => onPortWrite(port, value);
 
   void rot(int operation, int register) {
     int Function(int) rotFunction;
@@ -1449,7 +1529,7 @@ class Z80 {
         l = rotFunction(l);
         break;
       case 0x06:
-        memory.writeByte(hl, rotFunction(memory.readByte(hl)));
+        _memory.writeByte(hl, rotFunction(_memory.readByte(hl)));
         break;
       case 0x07:
         a = rotFunction(a);
@@ -1509,7 +1589,7 @@ class Z80 {
 
     // BIT
     if ((opCode >= 0x40) && (opCode <= 0x7F)) {
-      final val = memory.readByte(addr);
+      final val = _memory.readByte(addr);
       final bit = (opCode & 0x38) >> 3;
       fZ = !isBitSet(val, bit);
       fPV = !isBitSet(val, bit); // undocumented, but same as fZ
@@ -1534,42 +1614,42 @@ class Z80 {
       switch (opCodeType) {
         // RLC (IX+*)
         case 0x00:
-          opResult = RLC(memory.readByte(addr));
+          opResult = RLC(_memory.readByte(addr));
           break;
 
         // RRC (IX+*)
         case 0x01:
-          opResult = RRC(memory.readByte(addr));
+          opResult = RRC(_memory.readByte(addr));
           break;
 
         // RL (IX+*)
         case 0x02:
-          opResult = RL(memory.readByte(addr));
+          opResult = RL(_memory.readByte(addr));
           break;
 
         // RR (IX+*)
         case 0x03:
-          opResult = RR(memory.readByte(addr));
+          opResult = RR(_memory.readByte(addr));
           break;
 
         // SLA (IX+*)
         case 0x04:
-          opResult = SLA(memory.readByte(addr));
+          opResult = SLA(_memory.readByte(addr));
           break;
 
         // SRA (IX+*)
         case 0x05:
-          opResult = SRA(memory.readByte(addr));
+          opResult = SRA(_memory.readByte(addr));
           break;
 
         // SLL (IX+*)
         case 0x06:
-          opResult = SLL(memory.readByte(addr));
+          opResult = SLL(_memory.readByte(addr));
           break;
 
         // SRL (IX+*)
         case 0x07:
-          opResult = SRL(memory.readByte(addr));
+          opResult = SRL(_memory.readByte(addr));
           break;
 
         // RES n, (IX+*)
@@ -1581,7 +1661,7 @@ class Z80 {
         case 0x15:
         case 0x16:
         case 0x17:
-          opResult = resetBit(memory.readByte(addr), (opCode & 0x38) >> 3);
+          opResult = resetBit(_memory.readByte(addr), (opCode & 0x38) >> 3);
           break;
 
         // SET n, (IX+*)
@@ -1593,10 +1673,10 @@ class Z80 {
         case 0x1D:
         case 0x1E:
         case 0x1F:
-          opResult = setBit(memory.readByte(addr), (opCode & 0x38) >> 3);
+          opResult = setBit(_memory.readByte(addr), (opCode & 0x38) >> 3);
           break;
       }
-      memory.writeByte(addr, opResult);
+      _memory.writeByte(addr, opResult);
 
       final opCodeTarget = opCode & 0x07;
       switch (opCodeTarget) {
@@ -1661,7 +1741,7 @@ class Z80 {
 
       // LD (**), IX
       case 0x22:
-        memory.writeWord(getNextWord(), ix);
+        _memory.writeWord(getNextWord(), ix);
         tStates += 20;
         break;
 
@@ -1697,7 +1777,7 @@ class Z80 {
 
       // LD IX, (**)
       case 0x2A:
-        ix = memory.readWord(getNextWord());
+        ix = _memory.readWord(getNextWord());
         tStates += 20;
         break;
 
@@ -1728,20 +1808,20 @@ class Z80 {
       // INC (IX+*)
       case 0x34:
         addr = displacedIX();
-        memory.writeByte(addr, INC(memory.readByte(addr)));
+        _memory.writeByte(addr, INC(_memory.readByte(addr)));
         tStates += 19;
         break;
 
       // DEC (IX+*)
       case 0x35:
         addr = displacedIX();
-        memory.writeByte(addr, DEC(memory.readByte(addr)));
+        _memory.writeByte(addr, DEC(_memory.readByte(addr)));
         tStates += 19;
         break;
 
       // LD (IX+*), *
       case 0x36:
-        memory.writeByte(displacedIX(), getNextByte());
+        _memory.writeByte(displacedIX(), getNextByte());
         tStates += 19;
         break;
 
@@ -1765,7 +1845,7 @@ class Z80 {
 
       // LD B, (IX+*)
       case 0x46:
-        b = memory.readByte(displacedIX());
+        b = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1783,7 +1863,7 @@ class Z80 {
 
       // LD C, (IX+*)
       case 0x4E:
-        c = memory.readByte(displacedIX());
+        c = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1801,7 +1881,7 @@ class Z80 {
 
       // LD D, (IX+*)
       case 0x56:
-        d = memory.readByte(displacedIX());
+        d = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1819,7 +1899,7 @@ class Z80 {
 
       // LD E, (IX+*)
       case 0x5E:
-        e = memory.readByte(displacedIX());
+        e = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1860,7 +1940,7 @@ class Z80 {
 
       // LD H, (IX+*)
       case 0x66:
-        h = memory.readByte(displacedIX());
+        h = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1907,7 +1987,7 @@ class Z80 {
 
       // LD L, (IX+*)
       case 0x6E:
-        l = memory.readByte(displacedIX());
+        l = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1919,43 +1999,43 @@ class Z80 {
 
       // LD (IX+*), B
       case 0x70:
-        memory.writeByte(displacedIX(), b);
+        _memory.writeByte(displacedIX(), b);
         tStates += 19;
         break;
 
       // LD (IX+*), C
       case 0x71:
-        memory.writeByte(displacedIX(), c);
+        _memory.writeByte(displacedIX(), c);
         tStates += 19;
         break;
 
       // LD (IX+*), D
       case 0x72:
-        memory.writeByte(displacedIX(), d);
+        _memory.writeByte(displacedIX(), d);
         tStates += 19;
         break;
 
       // LD (IX+*), E
       case 0x73:
-        memory.writeByte(displacedIX(), e);
+        _memory.writeByte(displacedIX(), e);
         tStates += 19;
         break;
 
       // LD (IX+*), H
       case 0x74:
-        memory.writeByte(displacedIX(), h);
+        _memory.writeByte(displacedIX(), h);
         tStates += 19;
         break;
 
       // LD (IX+*), L
       case 0x75:
-        memory.writeByte(displacedIX(), l);
+        _memory.writeByte(displacedIX(), l);
         tStates += 19;
         break;
 
       // LD (IX+*), A
       case 0x77:
-        memory.writeByte(displacedIX(), a);
+        _memory.writeByte(displacedIX(), a);
         tStates += 19;
         break;
 
@@ -1973,7 +2053,7 @@ class Z80 {
 
       // LD A, (IX+*)
       case 0x7E:
-        a = memory.readByte(displacedIX());
+        a = _memory.readByte(displacedIX());
         tStates += 19;
         break;
 
@@ -1991,7 +2071,7 @@ class Z80 {
 
       // ADD A, (IX+*)
       case 0x86:
-        a = ADD8(a, memory.readByte(displacedIX()));
+        a = ADD8(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2009,7 +2089,7 @@ class Z80 {
 
       // ADC A, (IX+*)
       case 0x8E:
-        a = ADC8(a, memory.readByte(displacedIX()));
+        a = ADC8(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2027,7 +2107,7 @@ class Z80 {
 
       // SUB (IX+*)
       case 0x96:
-        a = SUB8(a, memory.readByte(displacedIX()));
+        a = SUB8(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2045,7 +2125,7 @@ class Z80 {
 
       // SBC A, (IX+*)
       case 0x9E:
-        a = SBC8(a, memory.readByte(displacedIX()));
+        a = SBC8(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2063,13 +2143,13 @@ class Z80 {
 
       // AND (IX+*)
       case 0xA6:
-        a = AND(a, memory.readByte(displacedIX()));
+        a = AND(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
       // XOR (IX+*)
       case 0xAE:
-        a = XOR(a, memory.readByte(displacedIX()));
+        a = XOR(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2099,7 +2179,7 @@ class Z80 {
 
       // OR (IX+*)
       case 0xB6:
-        a = OR(a, memory.readByte(displacedIX()));
+        a = OR(a, _memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2117,7 +2197,7 @@ class Z80 {
 
       // CP (IX+*)
       case 0xBE:
-        CP(memory.readByte(displacedIX()));
+        CP(_memory.readByte(displacedIX()));
         tStates += 15;
         break;
 
@@ -2134,8 +2214,8 @@ class Z80 {
 
       // EX (SP), IX
       case 0xE3:
-        final temp = memory.readWord(sp);
-        memory.writeWord(sp, ix);
+        final temp = _memory.readWord(sp);
+        _memory.writeWord(sp, ix);
         ix = temp;
         tStates += 23;
         break;
@@ -2184,7 +2264,7 @@ class Z80 {
     switch (opCode) {
       // IN B, (C)
       case 0x40:
-        b = portRead(bc);
+        b = onPortRead(bc);
         _inSetFlags(b);
         tStates += 12;
         break;
@@ -2202,7 +2282,7 @@ class Z80 {
 
       // LD (**), BC
       case 0x43:
-        memory.writeWord(getNextWord(), bc);
+        _memory.writeWord(getNextWord(), bc);
         tStates += 20;
         break;
 
@@ -2246,7 +2326,7 @@ class Z80 {
 
       // IN C, (C)
       case 0x48:
-        c = portRead(bc);
+        c = onPortRead(bc);
         _inSetFlags(c);
         tStates += 12;
         break;
@@ -2265,7 +2345,7 @@ class Z80 {
 
       // LD BC, (**)
       case 0x4B:
-        bc = memory.readWord(getNextWord());
+        bc = _memory.readWord(getNextWord());
         tStates += 20;
         break;
 
@@ -2283,7 +2363,7 @@ class Z80 {
 
       // IN D, (C)
       case 0x50:
-        d = portRead(bc);
+        d = onPortRead(bc);
         _inSetFlags(d);
         tStates += 12;
         break;
@@ -2301,7 +2381,7 @@ class Z80 {
 
       // LD (**), DE
       case 0x53:
-        memory.writeWord(getNextWord(), de);
+        _memory.writeWord(getNextWord(), de);
         tStates += 20;
         break;
 
@@ -2329,7 +2409,7 @@ class Z80 {
 
       // IN E, (C)
       case 0x58:
-        e = portRead(bc);
+        e = onPortRead(bc);
         _inSetFlags(e);
         tStates += 12;
         break;
@@ -2348,7 +2428,7 @@ class Z80 {
 
       // LD DE, (**)
       case 0x5B:
-        de = memory.readWord(getNextWord());
+        de = _memory.readWord(getNextWord());
         tStates += 20;
         break;
 
@@ -2372,7 +2452,7 @@ class Z80 {
 
       // IN H, (C)
       case 0x60:
-        h = portRead(bc);
+        h = onPortRead(bc);
         _inSetFlags(h);
         tStates += 12;
         break;
@@ -2390,7 +2470,7 @@ class Z80 {
 
       // LD (**), HL
       case 0x63:
-        memory.writeWord(getNextWord(), hl);
+        _memory.writeWord(getNextWord(), hl);
         tStates += 20;
         break;
 
@@ -2401,7 +2481,7 @@ class Z80 {
 
       // IN L, (C)
       case 0x68:
-        l = portRead(bc);
+        l = onPortRead(bc);
         _inSetFlags(l);
         tStates += 12;
         break;
@@ -2420,7 +2500,7 @@ class Z80 {
 
       // LD HL, (**)
       case 0x6B:
-        hl = memory.readWord(getNextWord());
+        hl = _memory.readWord(getNextWord());
         tStates += 20;
         break;
 
@@ -2431,7 +2511,7 @@ class Z80 {
 
       // IN (C)
       case 0x70:
-        portRead(bc);
+        onPortRead(bc);
         tStates += 12;
         break;
 
@@ -2448,13 +2528,13 @@ class Z80 {
 
       // LD (**), SP
       case 0x73:
-        memory.writeWord(getNextWord(), sp);
+        _memory.writeWord(getNextWord(), sp);
         tStates += 20;
         break;
 
       // IN A, (C)
       case 0x78:
-        a = portRead(bc);
+        a = onPortRead(bc);
         _inSetFlags(a);
         tStates += 12;
         break;
@@ -2473,7 +2553,7 @@ class Z80 {
 
       // LD SP, (**)
       case 0x7B:
-        sp = memory.readWord(getNextWord());
+        sp = _memory.readWord(getNextWord());
         tStates += 20;
         break;
 
@@ -2569,7 +2649,7 @@ class Z80 {
 
     // BIT
     if ((opCode >= 0x40) && (opCode <= 0x7F)) {
-      final val = memory.readByte(addr);
+      final val = _memory.readByte(addr);
       final bit = (opCode & 0x38) >> 3;
       fZ = !isBitSet(val, bit);
       fPV = !isBitSet(val, bit); // undocumented, but same as fZ
@@ -2594,42 +2674,42 @@ class Z80 {
       switch (opCodeType) {
         // RLC (IY+*)
         case 0x00:
-          opResult = RLC(memory.readByte(addr));
+          opResult = RLC(_memory.readByte(addr));
           break;
 
         // RRC (IY+*)
         case 0x01:
-          opResult = RRC(memory.readByte(addr));
+          opResult = RRC(_memory.readByte(addr));
           break;
 
         // RL (IY+*)
         case 0x02:
-          opResult = RL(memory.readByte(addr));
+          opResult = RL(_memory.readByte(addr));
           break;
 
         // RR (IY+*)
         case 0x03:
-          opResult = RR(memory.readByte(addr));
+          opResult = RR(_memory.readByte(addr));
           break;
 
         // SLA (IY+*)
         case 0x04:
-          opResult = SLA(memory.readByte(addr));
+          opResult = SLA(_memory.readByte(addr));
           break;
 
         // SRA (IY+*)
         case 0x05:
-          opResult = SRA(memory.readByte(addr));
+          opResult = SRA(_memory.readByte(addr));
           break;
 
         // SLL (IY+*)
         case 0x06:
-          opResult = SLL(memory.readByte(addr));
+          opResult = SLL(_memory.readByte(addr));
           break;
 
         // SRL (IY+*)
         case 0x07:
-          opResult = SRL(memory.readByte(addr));
+          opResult = SRL(_memory.readByte(addr));
           break;
 
         // RES n, (IY+*)
@@ -2641,7 +2721,7 @@ class Z80 {
         case 0x15:
         case 0x16:
         case 0x17:
-          opResult = resetBit(memory.readByte(addr), (opCode & 0x38) >> 3);
+          opResult = resetBit(_memory.readByte(addr), (opCode & 0x38) >> 3);
           break;
 
         // SET n, (IY+*)
@@ -2653,10 +2733,10 @@ class Z80 {
         case 0x1D:
         case 0x1E:
         case 0x1F:
-          opResult = setBit(memory.readByte(addr), (opCode & 0x38) >> 3);
+          opResult = setBit(_memory.readByte(addr), (opCode & 0x38) >> 3);
           break;
       }
-      memory.writeByte(addr, opResult);
+      _memory.writeByte(addr, opResult);
 
       final opCodeTarget = opCode & 0x07;
       switch (opCodeTarget) {
@@ -2721,7 +2801,7 @@ class Z80 {
 
       // LD (**), IY
       case 0x22:
-        memory.writeWord(getNextWord(), iy);
+        _memory.writeWord(getNextWord(), iy);
         tStates += 20;
         break;
 
@@ -2757,7 +2837,7 @@ class Z80 {
 
       // LD IY, (**)
       case 0x2A:
-        iy = memory.readWord(getNextWord());
+        iy = _memory.readWord(getNextWord());
         tStates += 20;
         break;
 
@@ -2788,20 +2868,20 @@ class Z80 {
       // INC (IY+*)
       case 0x34:
         addr = displacedIY();
-        memory.writeByte(addr, INC(memory.readByte(addr)));
+        _memory.writeByte(addr, INC(_memory.readByte(addr)));
         tStates += 19;
         break;
 
       // DEC (IY+*)
       case 0x35:
         addr = displacedIY();
-        memory.writeByte(addr, DEC(memory.readByte(addr)));
+        _memory.writeByte(addr, DEC(_memory.readByte(addr)));
         tStates += 19;
         break;
 
       // LD (IY+*), *
       case 0x36:
-        memory.writeByte(displacedIY(), getNextByte());
+        _memory.writeByte(displacedIY(), getNextByte());
         tStates += 19;
         break;
 
@@ -2825,7 +2905,7 @@ class Z80 {
 
       // LD B, (IY+*)
       case 0x46:
-        b = memory.readByte(displacedIY());
+        b = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -2843,7 +2923,7 @@ class Z80 {
 
       // LD C, (IY+*)
       case 0x4E:
-        c = memory.readByte(displacedIY());
+        c = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -2861,7 +2941,7 @@ class Z80 {
 
       // LD D, (IY+*)
       case 0x56:
-        d = memory.readByte(displacedIY());
+        d = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -2879,7 +2959,7 @@ class Z80 {
 
       // LD E, (IY+*)
       case 0x5E:
-        e = memory.readByte(displacedIY());
+        e = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -2920,7 +3000,7 @@ class Z80 {
 
       // LD H, (IY+*)
       case 0x66:
-        h = memory.readByte(displacedIY());
+        h = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -2967,7 +3047,7 @@ class Z80 {
 
       // LD L, (IY+*)
       case 0x6E:
-        l = memory.readByte(displacedIY());
+        l = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -2979,43 +3059,43 @@ class Z80 {
 
       // LD (IY+*), B
       case 0x70:
-        memory.writeByte(displacedIY(), b);
+        _memory.writeByte(displacedIY(), b);
         tStates += 19;
         break;
 
       // LD (IY+*), C
       case 0x71:
-        memory.writeByte(displacedIY(), c);
+        _memory.writeByte(displacedIY(), c);
         tStates += 19;
         break;
 
       // LD (IY+*), D
       case 0x72:
-        memory.writeByte(displacedIY(), d);
+        _memory.writeByte(displacedIY(), d);
         tStates += 19;
         break;
 
       // LD (IY+*), E
       case 0x73:
-        memory.writeByte(displacedIY(), e);
+        _memory.writeByte(displacedIY(), e);
         tStates += 19;
         break;
 
       // LD (IY+*), H
       case 0x74:
-        memory.writeByte(displacedIY(), h);
+        _memory.writeByte(displacedIY(), h);
         tStates += 19;
         break;
 
       // LD (IY+*), L
       case 0x75:
-        memory.writeByte(displacedIY(), l);
+        _memory.writeByte(displacedIY(), l);
         tStates += 19;
         break;
 
       // LD (IY+*), A
       case 0x77:
-        memory.writeByte(displacedIY(), a);
+        _memory.writeByte(displacedIY(), a);
         tStates += 19;
         break;
 
@@ -3033,7 +3113,7 @@ class Z80 {
 
       // LD A, (IY+*)
       case 0x7E:
-        a = memory.readByte(displacedIY());
+        a = _memory.readByte(displacedIY());
         tStates += 19;
         break;
 
@@ -3051,7 +3131,7 @@ class Z80 {
 
       // ADD A, (IY+*)
       case 0x86:
-        a = ADD8(a, memory.readByte(displacedIY()));
+        a = ADD8(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3069,7 +3149,7 @@ class Z80 {
 
       // ADC A, (IY+*)
       case 0x8E:
-        a = ADC8(a, memory.readByte(displacedIY()));
+        a = ADC8(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3087,7 +3167,7 @@ class Z80 {
 
       // SUB (IY+*)
       case 0x96:
-        a = SUB8(a, memory.readByte(displacedIY()));
+        a = SUB8(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3105,7 +3185,7 @@ class Z80 {
 
       // SBC A, (IY+*)
       case 0x9E:
-        a = SBC8(a, memory.readByte(displacedIY()));
+        a = SBC8(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3123,13 +3203,13 @@ class Z80 {
 
       // AND (IY+*)
       case 0xA6:
-        a = AND(a, memory.readByte(displacedIY()));
+        a = AND(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
       // XOR (IY+*)
       case 0xAE:
-        a = XOR(a, memory.readByte(displacedIY()));
+        a = XOR(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3159,7 +3239,7 @@ class Z80 {
 
       // OR (IY+*)
       case 0xB6:
-        a = OR(a, memory.readByte(displacedIY()));
+        a = OR(a, _memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3177,7 +3257,7 @@ class Z80 {
 
       // CP (IY+*)
       case 0xBE:
-        CP(memory.readByte(displacedIY()));
+        CP(_memory.readByte(displacedIY()));
         tStates += 15;
         break;
 
@@ -3194,8 +3274,8 @@ class Z80 {
 
       // EX (SP), IY
       case 0xE3:
-        final temp = memory.readWord(sp);
-        memory.writeWord(sp, iy);
+        final temp = _memory.readWord(sp);
+        _memory.writeWord(sp, iy);
         iy = temp;
         tStates += 23;
         break;
@@ -3250,7 +3330,7 @@ class Z80 {
 
       // LD (BC), A
       case 0x02:
-        memory.writeByte(bc, a);
+        _memory.writeByte(bc, a);
         tStates += 7;
         break;
 
@@ -3293,7 +3373,7 @@ class Z80 {
 
       // LD A, (BC)
       case 0x0A:
-        a = memory.readByte(bc);
+        a = _memory.readByte(bc);
         tStates += 7;
         break;
 
@@ -3337,7 +3417,7 @@ class Z80 {
 
       // LD (DE), A
       case 0x12:
-        memory.writeByte(de, a);
+        _memory.writeByte(de, a);
         tStates += 7;
         break;
 
@@ -3380,7 +3460,7 @@ class Z80 {
 
       // LD A, (DE)
       case 0x1A:
-        a = memory.readByte(de);
+        a = _memory.readByte(de);
         tStates += 7;
         break;
 
@@ -3429,7 +3509,7 @@ class Z80 {
 
       // LD (**), HL
       case 0x22:
-        memory.writeWord(getNextWord(), hl);
+        _memory.writeWord(getNextWord(), hl);
         tStates += 16;
         break;
 
@@ -3477,7 +3557,7 @@ class Z80 {
 
       // LD HL, (**)
       case 0x2A:
-        hl = memory.readWord(getNextWord());
+        hl = _memory.readWord(getNextWord());
         tStates += 16;
         break;
 
@@ -3526,7 +3606,7 @@ class Z80 {
 
       // LD (**), A
       case 0x32:
-        memory.writeByte(getNextWord(), a);
+        _memory.writeByte(getNextWord(), a);
         tStates += 13;
         break;
 
@@ -3538,19 +3618,19 @@ class Z80 {
 
       // INC (HL)
       case 0x34:
-        memory.writeByte(hl, INC(memory.readByte(hl)));
+        _memory.writeByte(hl, INC(_memory.readByte(hl)));
         tStates += 7;
         break;
 
       // DEC (HL)
       case 0x35:
-        memory.writeByte(hl, DEC(memory.readByte(hl)));
+        _memory.writeByte(hl, DEC(_memory.readByte(hl)));
         tStates += 7;
         break;
 
       // LD (HL), *
       case 0x36:
-        memory.writeByte(hl, getNextByte());
+        _memory.writeByte(hl, getNextByte());
         tStates += 10;
         break;
 
@@ -3577,7 +3657,7 @@ class Z80 {
 
       // LD A, (**)
       case 0x3A:
-        a = memory.readByte(getNextWord());
+        a = _memory.readByte(getNextWord());
         tStates += 13;
         break;
 
@@ -3645,7 +3725,7 @@ class Z80 {
 
       // LD B, (HL)
       case 0x46:
-        b = memory.readByte(hl);
+        b = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -3692,7 +3772,7 @@ class Z80 {
 
       // LD C, (HL)
       case 0x4E:
-        c = memory.readByte(hl);
+        c = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -3739,7 +3819,7 @@ class Z80 {
 
       // LD D, (HL)
       case 0x56:
-        d = memory.readByte(hl);
+        d = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -3786,7 +3866,7 @@ class Z80 {
 
       // LD E, (HL)
       case 0x5E:
-        e = memory.readByte(hl);
+        e = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -3833,7 +3913,7 @@ class Z80 {
 
       // LD H, (HL)
       case 0x66:
-        h = memory.readByte(hl);
+        h = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -3880,7 +3960,7 @@ class Z80 {
 
       // LD L, (HL)
       case 0x6E:
-        l = memory.readByte(hl);
+        l = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -3892,37 +3972,37 @@ class Z80 {
 
       // LD (HL), B
       case 0x70:
-        memory.writeByte(hl, b);
+        _memory.writeByte(hl, b);
         tStates += 7;
         break;
 
       // LD (HL), C
       case 0x71:
-        memory.writeByte(hl, c);
+        _memory.writeByte(hl, c);
         tStates += 7;
         break;
 
       // LD (HL), D
       case 0x72:
-        memory.writeByte(hl, d);
+        _memory.writeByte(hl, d);
         tStates += 7;
         break;
 
       // LD (HL), E
       case 0x73:
-        memory.writeByte(hl, e);
+        _memory.writeByte(hl, e);
         tStates += 7;
         break;
 
       // LD (HL), H
       case 0x74:
-        memory.writeByte(hl, h);
+        _memory.writeByte(hl, h);
         tStates += 7;
         break;
 
       // LD (HL), L
       case 0x75:
-        memory.writeByte(hl, l);
+        _memory.writeByte(hl, l);
         tStates += 7;
         break;
 
@@ -3934,7 +4014,7 @@ class Z80 {
 
       // LD (HL), A
       case 0x77:
-        memory.writeByte(hl, a);
+        _memory.writeByte(hl, a);
         tStates += 7;
         break;
 
@@ -3976,7 +4056,7 @@ class Z80 {
 
       // LD A, (HL)
       case 0x7E:
-        a = memory.readByte(hl);
+        a = _memory.readByte(hl);
         tStates += 7;
         break;
 
@@ -4017,7 +4097,7 @@ class Z80 {
 
       // ADD A, (HL)
       case 0x86:
-        a = ADD8(a, memory.readByte(hl));
+        a = ADD8(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4058,7 +4138,7 @@ class Z80 {
 
       // ADC A, (HL)
       case 0x8E:
-        a = ADC8(a, memory.readByte(hl));
+        a = ADC8(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4099,7 +4179,7 @@ class Z80 {
 
       // SUB (HL)
       case 0x96:
-        a = SUB8(a, memory.readByte(hl));
+        a = SUB8(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4140,7 +4220,7 @@ class Z80 {
 
       // SBC A, (HL)
       case 0x9E:
-        a = SBC8(a, memory.readByte(hl));
+        a = SBC8(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4181,7 +4261,7 @@ class Z80 {
 
       // AND (HL)
       case 0xA6:
-        a = AND(a, memory.readByte(hl));
+        a = AND(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4222,7 +4302,7 @@ class Z80 {
 
       // XOR (HL)
       case 0xAE:
-        a = XOR(a, memory.readByte(hl));
+        a = XOR(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4263,7 +4343,7 @@ class Z80 {
 
       // OR (HL)
       case 0xB6:
-        a = OR(a, memory.readByte(hl));
+        a = OR(a, _memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4304,7 +4384,7 @@ class Z80 {
 
       // CP (HL)
       case 0xBE:
-        CP(memory.readByte(hl));
+        CP(_memory.readByte(hl));
         tStates += 3;
         break;
 
@@ -4587,8 +4667,8 @@ class Z80 {
       // EX (SP), HL
       case 0xE3:
         final temp = hl;
-        hl = memory.readWord(sp);
-        memory.writeWord(sp, temp);
+        hl = _memory.readWord(sp);
+        _memory.writeWord(sp, temp);
         tStates += 19;
         break;
 

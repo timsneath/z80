@@ -1361,7 +1361,7 @@ class Disassembler {
 
   // This helper method identifies the opcode length for a given instruction
   // that is one to four bytes long and begins with inst1.
-  static int calculateInstructionLength(
+  static int _calculateInstructionLength(
       int inst1, int inst2, int inst3, int inst4) {
     switch (inst1) {
       case 0xED: // extended instructions
@@ -1427,6 +1427,13 @@ class Disassembler {
     }
   }
 
+  /// Given a byte array, read the first opcode from it and return it as an
+  /// instruction.
+  ///
+  /// An arbitrary length list can be provided, including multiple opcodes, but
+  /// only the first opcode will be decoded. The [Instruction.length] property
+  /// will return the actual count of bytes for the instruction, including
+  /// operands.
   static Instruction disassembleInstruction(List<int> instruction) {
     if (instruction.length < 4) {
       // We expect a four-byte instruction, but if not we buffer as necessary;
@@ -1435,7 +1442,7 @@ class Disassembler {
     }
 
     // This is the actual instruction length, based on opcode decoding
-    final length = calculateInstructionLength(
+    final length = _calculateInstructionLength(
         instruction[0], instruction[1], instruction[2], instruction[3]);
     final disassembly = decodeInstruction(
         instruction[0], instruction[1], instruction[2], instruction[3]);
@@ -1452,6 +1459,8 @@ class Disassembler {
     return Instruction(length, byteCode.join(' '), disassembly);
   }
 
+  /// Takes an arbitrary length byte array and disassembles the first [count]
+  /// instructions.
   static String disassembleMultipleInstructions(
       List<int> instructions, int count, int pc) {
     final result = StringBuffer();
