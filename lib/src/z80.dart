@@ -106,13 +106,16 @@ class Z80 {
             // Not used on the ZX Spectrum
             break;
           case 1:
-            iff1 = false;
+            // iff1 = false;
 
             PUSH(pc);
             pc = 0x0038;
             break;
           case 2:
-            // TODO: Implement IM2
+            PUSH(pc);
+            final address = createWord(0, i);
+
+            pc = memory.readWord(address);
             break;
         }
       }
@@ -2232,7 +2235,6 @@ class Z80 {
       case 0x46:
       case 0x66:
         im = 0;
-        // print('IM 0');
         tStates += 8;
         break;
 
@@ -2309,7 +2311,6 @@ class Z80 {
       case 0x6E:
       case 0x76:
         im = 1;
-        // print('IM 1');
         tStates += 8;
         break;
 
@@ -2355,7 +2356,6 @@ class Z80 {
       case 0x5E:
       case 0x7E:
         im = 2;
-        // print('IM 2');
         tStates += 8;
         break;
 
