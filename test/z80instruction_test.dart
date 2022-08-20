@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 // we pick this as a 'safe' location that doesn't clash with other
 // instructions
 const origin = 0xA000;
+const haltOpcode = 0x76;
 
 RandomAccessMemory memory = RandomAccessMemory(64 * 1024);
 Z80 z80 = Z80(memory, startAddress: origin);
@@ -16,15 +17,17 @@ int peek(int addr) => memory.readByte(addr);
 
 void loadInstructions(List<int> instructions) {
   memory.load(origin, instructions);
-  memory.writeByte(origin + instructions.length, 0x76); // HALT instruction
+  memory.writeByte(
+      origin + instructions.length, haltOpcode); // HALT instruction
 }
 
 void execute(List<int> instructions) {
   loadInstructions(instructions);
   z80.pc = origin;
-  while (!z80.cpuSuspended) {
+  while (!(peek(z80.pc) == haltOpcode)) {
     z80.executeNextInstruction();
   }
+  z80.r++; // Account for HALT instruction
 }
 
 void main() {

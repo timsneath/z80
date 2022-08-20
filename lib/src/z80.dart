@@ -38,7 +38,6 @@ const _extendedCodes = [
 
 class Z80 {
   final Memory memory;
-  bool cpuSuspended;
   int tStates;
 
   late final PortReadCallback onPortRead;
@@ -74,8 +73,7 @@ class Z80 {
         im = 0,
         i = 0xFF,
         r = 0xFF,
-        tStates = 0,
-        cpuSuspended = false;
+        tStates = 0;
 
   /// Reset the Z80 to an initial power-on configuration.
   void reset() {
@@ -94,7 +92,6 @@ class Z80 {
     i = r = 0xFF;
 
     tStates = 0;
-    cpuSuspended = false;
   }
 
   /// Generate an interrupt.
@@ -3933,7 +3930,6 @@ class Z80 {
       case 0x76:
         tStates += 4;
         pc = (pc - 1) % 0x10000;
-        cpuSuspended = true;
         break;
 
       // LD (HL), A
