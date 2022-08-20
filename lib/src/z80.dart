@@ -1,13 +1,12 @@
 // z80.dart -- implements the Zilog Z80 processor core
 //
 // Reference notes:
+//
 // The Z80 microprocessor user manual can be downloaded from Zilog:
 //    http://tinyurl.com/z80manual
 //
-// Other useful details of the Z80 architecture can be found here:
-//    http://landley.net/history/mirror/cpm/z80.html
-// and here:
-//    http://z80.info/z80code.htm
+// An excellent additional reference is "The Undocumented Z80 Documented", at:
+//    http://www.z80.info/zip/z80-documented.pdf
 
 import 'memory.dart';
 import 'utility.dart';
@@ -36,10 +35,54 @@ const _extendedCodes = [
   0xb0, 0xb1, 0xb2, 0xb3, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbf // add/sub/and/or
 ];
 
+/// The Zilog Z80 emulator.
 class Z80 {
   final MemoryBase _memory;
+
+  /// Callback for a port read (IN instruction).
+  ///
+  /// This should be used by an emulator to handle peripherals or ULA access,
+  /// including keyboard or storage input.
   final PortReadCallback onPortRead;
+
+  /// Callback for a port write (OUT instruction).
+  ///
+  /// This should be used by an emulator to handle peripherals or ULA access,
+  /// such as a printer or storage output.
   final PortWriteCallback onPortWrite;
+
+  // Core registers
+  int a, f, b, c, d, e, h, l;
+  int ix, iy;
+
+  // The alternate register set (A', F', B', C', D', E', H', L')
+  int a_, f_, b_, c_, d_, e_, h_, l_;
+
+  /// Interrupt Page Address register (I).
+  int i;
+
+  /// Memory Refresh register (R).
+  int r;
+
+  /// Program Counter (PC).
+  int pc;
+
+  /// Stack Pointer (SP).
+  int sp;
+
+  /// Interrupt Flip-Flop (IFF1).
+  bool iff1;
+
+  /// Interrupt Flip-Flop (IFF2).
+  ///
+  /// This is used to cache the value of the Interrupt Flag when a Non-Maskable
+  /// Interrupt occurs.
+  bool iff2;
+
+  /// Interrupt Mode (IM).
+  ///
+  /// This can be a value between 0 and 2.
+  int im;
 
   /// Number of clock cycles that have occurred since the last clock reset.
   int tStates;
@@ -97,8 +140,13 @@ class Z80 {
   }
 
   /// Generate an interrupt.
-  void interrupt({bool nonMaskable = false}) {
+  void interrupt([bool nonMaskable = false]) {
     if (nonMaskable) {
+      // Per "The Undocumented Z80 Documented", shen a NMI is accepted, IFF1 is
+      // reset. At the end of the routine, IFF1 must be restored (so the running
+      // program is not affected). That’s why IFF2 is there; to keep a copy of
+      // IFF1.
+      iff1 = false; // prevent
       pc = 0x0066;
     } else {
       if (iff1) {
@@ -116,7 +164,6 @@ class Z80 {
           case 2:
             PUSH(pc);
             final address = createWord(0, i);
-
             pc = _memory.readWord(address);
             break;
         }
@@ -140,31 +187,13 @@ class Z80 {
     'S': 0x80 // sign flag (bit 7)
   };
 
-  // Core registers
-  int a, f, b, c, d, e, h, l;
-  int ix, iy;
-
-  // The alternate register set (A', F', B', C', D', E', H', L')
-  int a_, f_, b_, c_, d_, e_, h_, l_;
-
-  int i; // Interrupt Page Address register
-  int r; // Memory Refresh register
-
-  int pc; // Program Counter
-  int sp; // Stack pointer
-
-  bool iff1;
-  bool iff2;
-
-  int im; // Interrupt Mode
-
   int get af => (a << 8) + f;
   set af(int value) {
     a = highByte(value);
     f = lowByte(value);
   }
 
-  /// The AF' register
+  /// The AF' register.
   int get af_ => (a_ << 8) + f_;
   set af_(int value) {
     a_ = highByte(value);
@@ -211,25 +240,24 @@ class Z80 {
   }
 
   int get ixh => (ix & 0xFF00) >> 8;
-  int get ixl => ix & 0x00FF;
-
   set ixh(int value) {
     final lo = lowByte(ix);
     ix = ((value & 0xFF) << 8) + lo;
   }
 
+  int get ixl => ix & 0x00FF;
   set ixl(int value) {
     final hi = highByte(ix);
     ix = (hi << 8) + (value & 0xFF);
   }
 
   int get iyh => (iy & 0xFF00) >> 8;
-  int get iyl => iy & 0x00FF;
   set iyh(int value) {
     final lo = lowByte(iy);
     iy = ((value & 0xFF) << 8) + lo;
   }
 
+  int get iyl => iy & 0x00FF;
   set iyl(int value) {
     final hi = highByte(iy);
     iy = (hi << 8) + (value & 0xFF);
@@ -284,7 +312,6 @@ class Z80 {
   /// Set if the twos-complement value is negative. That is, set if the most
   /// significant bit is set.
   bool get fS => f & flags['S']! == flags['S'];
-
   set fS(bool value) => f = (value ? (f | flags['S']!) : (f & ~flags['S']!));
 
   // *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
@@ -616,6 +643,15 @@ class Z80 {
     PUSH(pc);
     pc = addr;
     tStates += 11;
+  }
+
+  /// Return from Non-Maskable Interrupt
+  void RETN() {
+    // When an NMI is accepted, IFF1 is reset to prevent any other interrupts
+    // occurring during the same period. This return ensures that the value is
+    // restored from IFF2.
+    pc = POP();
+    iff1 = iff2;
   }
 
   // Stack operations
@@ -2306,8 +2342,7 @@ class Z80 {
       case 0x6D:
       case 0x75:
       case 0x7D:
-        pc = POP();
-        iff1 = iff2;
+        RETN();
         tStates += 14;
         break;
 
