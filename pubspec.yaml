@@ -1,6 +1,6 @@
 name: dart_z80
 description: Zilog Z80 microprocessor emulator core. Designed for use as part of a 8-bit computer system emulator.
-version: 0.0.6
+version: 0.0.7
 repository: https://github.com/timsneath/z80
 
 environment:
