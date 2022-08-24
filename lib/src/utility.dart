@@ -10,14 +10,14 @@ int lowByte(int value) => value & 0x00FF;
 int createWord(int lowByte, int highByte) => (highByte << 8) + lowByte;
 
 /// Format a byte as a hex string.
-String toHex8(int value) => (value & 0xFF).toRadixString(16).padLeft(1, '0');
+String toHex8(int value) => (value & 0xFF).toRadixString(16).padLeft(2, '0');
 
 /// Format a word as a hex string.
-String toHex16(int value) => (value & 0xFFFF).toRadixString(16).padLeft(2, '0');
+String toHex16(int value) => (value & 0xFFFF).toRadixString(16).padLeft(4, '0');
 
 /// Format a dword as a hex string.
 String toHex32(int value) =>
-    (value & 0xFFFFFFFF).toRadixString(16).padLeft(4, '0');
+    (value & 0xFFFFFFFF).toRadixString(16).padLeft(8, '0');
 
 /// Format a byte as a binary string.
 String toBin8(int value) => (value & 0xFF).toRadixString(2).padLeft(8, '0');

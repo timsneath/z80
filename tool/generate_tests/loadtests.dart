@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dart_z80/dart_z80.dart';
 import 'model.dart';
 
 const String testsFile = 'tool/generate_tests/fuse_tests/tests.in';
@@ -7,8 +8,6 @@ const String expectedResultsFile =
     'tool/generate_tests/fuse_tests/tests.expected';
 
 List<String> listUndocumentedOpcodeTests() {
-  String toHex16(int value) => value.toRadixString(16).padLeft(2, '0');
-
   // These unit tests stress undocumented Z80 opcodes
   final undocumentedOpcodeTests = <String>[
     "4c", "4e", "54", "5c", "63", "64", "6b", "6c", "6e",

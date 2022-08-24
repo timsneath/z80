@@ -1276,9 +1276,9 @@ class Disassembler {
   static String replaceOperand(String instruction, int byte, int highByte) {
     if (instruction.contains('**')) {
       final word = createWord(byte, highByte);
-      return instruction.replaceFirst('**', '${toHex32(word).toUpperCase()}h');
+      return instruction.replaceFirst('**', '${toHex16(word).toUpperCase()}h');
     } else if (instruction.contains('*')) {
-      return instruction.replaceFirst('*', '${toHex16(byte).toUpperCase()}h');
+      return instruction.replaceFirst('*', '${toHex8(byte).toUpperCase()}h');
     } else {
       return instruction;
     }
@@ -1292,7 +1292,7 @@ class Disassembler {
 
     switch (inst1) {
       case 0xED: // extended instructions
-        final opcode = toHex16(inst1) + toHex16(inst2);
+        final opcode = toHex8(inst1) + toHex8(inst2);
         if (!z80Opcodes.containsKey(opcode)) {
           print('Opcode $opcode missing.');
           return unknownOpcode;
@@ -1302,7 +1302,7 @@ class Disassembler {
       case 0xCB: // bit instructions
         // none of these have displacement values, so don't bother to escape
         // with replaceOperand()
-        final opcode = toHex16(inst1) + toHex16(inst2);
+        final opcode = toHex8(inst1) + toHex8(inst2);
 
         return z80Opcodes[opcode] ?? unknownOpcode;
 
@@ -1315,7 +1315,7 @@ class Disassembler {
           // where ** is the displacement and XX is the opcode that determines
           // which instruction type. We map these as DDCBXX, so we skip
           // inst3 when searching the map.
-          final opcode = toHex16(inst1) + toHex16(inst2) + toHex16(inst4);
+          final opcode = toHex8(inst1) + toHex8(inst2) + toHex8(inst4);
           if (!z80Opcodes.containsKey(opcode)) {
             print('Opcode $opcode missing.');
             return unknownOpcode;
@@ -1325,7 +1325,7 @@ class Disassembler {
         }
         if (inst2 == 0x36) // LD (IX+*), *
         {
-          final opcode = toHex16(inst1) + toHex16(inst2);
+          final opcode = toHex8(inst1) + toHex8(inst2);
 
           if (!z80Opcodes.containsKey(opcode)) {
             print('Opcode $opcode missing.');
@@ -1339,7 +1339,7 @@ class Disassembler {
         }
 
         // Just a regular DDxx or FDxx instruction
-        final opcode = toHex16(inst1) + toHex16(inst2);
+        final opcode = toHex8(inst1) + toHex8(inst2);
 
         if (!z80Opcodes.containsKey(opcode)) {
           print('Opcode $opcode missing.');
@@ -1349,7 +1349,7 @@ class Disassembler {
         }
       default:
         // Just a regular single byte opcode
-        final opcode = toHex16(inst1);
+        final opcode = toHex8(inst1);
         if (!z80Opcodes.containsKey(opcode)) {
           print('Opcode $opcode missing.');
           return unknownOpcode;
@@ -1450,7 +1450,7 @@ class Disassembler {
     var byteCode = <String>[];
     for (var i = 0; i < 4; i++) {
       if (i < length) {
-        byteCode.add(toHex16(instruction[i]));
+        byteCode.add(toHex8(instruction[i]));
       } else {
         byteCode.add('  ');
       }

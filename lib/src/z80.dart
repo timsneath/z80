@@ -87,6 +87,8 @@ class Z80 {
   /// Number of clock cycles that have occurred since the last clock reset.
   int tStates;
 
+  bool halt = false;
+
   /// Initializes the Z80 emulator.
   Z80(
     this._memory, {
@@ -149,15 +151,16 @@ class Z80 {
       iff1 = false; // prevent
       pc = 0x0066;
     } else {
+      print('maskable interrupt: $iff1 $iff2 $im');
       if (iff1) {
+        iff1 = false;
+        iff2 = false;
         // Interrupts enabled
         switch (im) {
           case 0:
             // Not used on the ZX Spectrum
             break;
           case 1:
-            // iff1 = false;
-
             PUSH(pc);
             pc = 0x0038;
             break;
@@ -367,14 +370,13 @@ class Z80 {
       pc = (pc - 2) % 0x10000;
       tStates += 21;
     } else {
-      f5 = isBitSet((byteRead + a) & 0xFF, 1);
-      f3 = isBitSet((byteRead + a) & 0xFF, 3);
-      fH = false;
-      fPV = false;
-      fN = false;
-
       tStates += 16;
     }
+    f5 = isBitSet((byteRead + a) & 0xFF, 1);
+    f3 = isBitSet((byteRead + a) & 0xFF, 3);
+    fH = false;
+    fPV = bc != 0;
+    fN = false;
   }
 
   /// Load, Decrement and Repeat
@@ -389,14 +391,13 @@ class Z80 {
       pc = (pc - 2) % 0x10000;
       tStates += 21;
     } else {
-      f5 = isBitSet((byteRead + a) & 0xFF, 1);
-      f3 = isBitSet((byteRead + a) & 0xFF, 3);
-      fH = false;
-      fPV = false;
-      fN = false;
-
       tStates += 16;
     }
+    f5 = isBitSet((byteRead + a) & 0xFF, 1);
+    f3 = isBitSet((byteRead + a) & 0xFF, 3);
+    fH = false;
+    fPV = bc != 0;
+    fN = false;
   }
 
   // Arithmetic operations
@@ -2288,7 +2289,7 @@ class Z80 {
           pc--; // go back one
           executeNextInstruction();
         } else {
-          throw Exception("Opcode DD${toHex16(opCode)} not understood. ");
+          throw Exception("Opcode DD${toHex8(opCode)} not understood. ");
         }
     }
   }
@@ -3341,12 +3342,13 @@ class Z80 {
           pc--; // go back one
           executeNextInstruction();
         } else {
-          throw Exception("Opcode FD${toHex16(opCode)} not understood. ");
+          throw Exception("Opcode FD${toHex8(opCode)} not understood. ");
         }
     }
   }
 
   bool executeNextInstruction() {
+    halt = false;
     final opCode = getNextByte();
 
     r = (r + 1) % 0x100;
@@ -4044,7 +4046,8 @@ class Z80 {
       // HALT
       case 0x76:
         tStates += 4;
-        pc = (pc - 1) % 0x10000;
+        halt = true;
+        pc--; // return to HALT, just keep executing it.
         break;
 
       // LD (HL), A

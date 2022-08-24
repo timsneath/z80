@@ -7,9 +7,6 @@ import 'loadtests.dart';
 const bool includeUndocumentedOpcodeUnitTests = true;
 const bool skipUndocumentedOpcodeUnitTests = false;
 
-String toHex32(int value) => '0x${value.toRadixString(16).padLeft(4, '0')}';
-String toHex16(int value) => '0x${value.toRadixString(16).padLeft(2, '0')}';
-
 void main() {
   final tests = loadTests();
 
@@ -123,20 +120,20 @@ void main() {
   test("${test.isUndocumented ? 'UNDOCUMENTED' : 'OPCODE'} "
        "$testName${instr != null ? ' | $instr' : ''}", () {
     // Set up machine initial state
-    loadRegisters(af: ${toHex32(test.input.reg.af)}, 
-                  bc: ${toHex32(test.input.reg.bc)}, 
-                  de: ${toHex32(test.input.reg.de)}, 
-                  hl: ${toHex32(test.input.reg.hl)}, 
-                  af_: ${toHex32(test.input.reg.af_)}, 
-                  bc_: ${toHex32(test.input.reg.bc_)}, 
-                  de_: ${toHex32(test.input.reg.de_)},
-                  hl_: ${toHex32(test.input.reg.hl_)}, 
-                  ix: ${toHex32(test.input.reg.ix)}, 
-                  iy: ${toHex32(test.input.reg.iy)}, 
-                  sp: ${toHex32(test.input.reg.sp)}, 
-                  pc: ${toHex32(test.input.reg.pc)});
-    z80.i = ${toHex16(test.input.spec.i)};
-    z80.r = ${toHex16(test.input.spec.r)};
+    loadRegisters(af: ${toHex16(test.input.reg.af)}, 
+                  bc: ${toHex16(test.input.reg.bc)}, 
+                  de: ${toHex16(test.input.reg.de)}, 
+                  hl: ${toHex16(test.input.reg.hl)}, 
+                  af_: ${toHex16(test.input.reg.af_)}, 
+                  bc_: ${toHex16(test.input.reg.bc_)}, 
+                  de_: ${toHex16(test.input.reg.de_)},
+                  hl_: ${toHex16(test.input.reg.hl_)}, 
+                  ix: ${toHex16(test.input.reg.ix)}, 
+                  iy: ${toHex16(test.input.reg.iy)}, 
+                  sp: ${toHex16(test.input.reg.sp)}, 
+                  pc: ${toHex16(test.input.reg.pc)});
+    z80.i = ${toHex8(test.input.spec.i)};
+    z80.r = ${toHex8(test.input.spec.r)};
     z80.iff1 = ${test.input.spec.iff1 == 1 ? 'true' : 'false'};
     z80.iff2 = ${test.input.spec.iff2 == 1 ? 'true' : 'false'};
 """);
@@ -145,7 +142,7 @@ void main() {
         var addr = startAddress;
         for (final poke in test.input.initialMemorySetup[addr]!) {
           sink.write("""
-    poke(${toHex32(addr++)}, ${toHex16(poke)});
+    poke(${toHex16(addr++)}, ${toHex8(poke)});
 """);
         }
       }
@@ -158,20 +155,20 @@ void main() {
     }
 
     // Test machine state is as expected
-    checkRegisters(af: ${toHex32(test.results.reg.af)},
-                   bc: ${toHex32(test.results.reg.bc)},
-                   de: ${toHex32(test.results.reg.de)},
-                   hl: ${toHex32(test.results.reg.hl)},
-                   af_: ${toHex32(test.results.reg.af_)},
-                   bc_: ${toHex32(test.results.reg.bc_)},
-                   de_: ${toHex32(test.results.reg.de_)},
-                   hl_: ${toHex32(test.results.reg.hl_)},
-                   ix: ${toHex32(test.results.reg.ix)},
-                   iy: ${toHex32(test.results.reg.iy)},
-                   sp: ${toHex32(test.results.reg.sp)},
-                   pc: ${toHex32(test.results.reg.pc)});
-    checkSpecialRegisters(i: ${toHex16(test.results.spec.i)},
-                          r: ${toHex16(test.results.spec.r)},
+    checkRegisters(af: ${toHex16(test.results.reg.af)},
+                   bc: ${toHex16(test.results.reg.bc)},
+                   de: ${toHex16(test.results.reg.de)},
+                   hl: ${toHex16(test.results.reg.hl)},
+                   af_: ${toHex16(test.results.reg.af_)},
+                   bc_: ${toHex16(test.results.reg.bc_)},
+                   de_: ${toHex16(test.results.reg.de_)},
+                   hl_: ${toHex16(test.results.reg.hl_)},
+                   ix: ${toHex16(test.results.reg.ix)},
+                   iy: ${toHex16(test.results.reg.iy)},
+                   sp: ${toHex16(test.results.reg.sp)},
+                   pc: ${toHex16(test.results.reg.pc)});
+    checkSpecialRegisters(i: ${toHex8(test.results.spec.i)},
+                          r: ${toHex8(test.results.spec.r)},
                           iff1: ${test.results.spec.iff1 == 1 ? 'true' : 'false'},
                           iff2: ${test.results.spec.iff2 == 1 ? 'true' : 'false'},
                           tStates: ${test.results.spec.tStates});
