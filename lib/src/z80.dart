@@ -1182,8 +1182,8 @@ class Z80 {
         // internal register 'W' that is highly undocumented. This really
         // doesn't matter too much, I don't think. See the following for more:
         //   http://www.omnimaga.org/asm-language/bit-n-(hl)-flags/
-        f3 = false;
-        f5 = false;
+        f3 = isBitSet(val, 3);
+        f5 = isBitSet(val, 5);
         fPV = fZ;
         break;
       case 0x7:
